@@ -2,7 +2,7 @@
   "name": "Temp Mail Bot",
   "description": "Telegram bot that creates temporary email addresses using mail.tm API. Supports custom usernames, inbox monitoring, OTP auto-detection, and auto-watch mode.",
   "keywords": ["telegram", "bot", "tempmail", "python"],
-  "repository": "https://github.com/thomas82822/Replitmail",
+  "repository": "https://github.com/oyevipthoma88/Replitmail",
   "logo": "",
   "env": {
     "BOT_TOKEN": {
