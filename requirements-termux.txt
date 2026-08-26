@@ -1,0 +1,10 @@
+# Termux-friendly dependency set.
+# Pins are relaxed to minimums so Termux can use whatever version it can
+# build/download for aarch64 (exact pins often have no wheel on Android).
+python-telegram-bot[job-queue]>=21.6,<22
+aiohttp>=3.9
+python-dotenv>=1.0.1
+httpx>=0.27
+# Brotli is optional on Termux (needs a compiler). The bot never requests
+# brotli-encoded responses, so it is safe to skip if the build fails.
+Brotli>=1.1.0 ; platform_machine != "unknown"
