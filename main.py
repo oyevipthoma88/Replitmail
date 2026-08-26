@@ -533,6 +533,39 @@ async def _create_outlook(uid: int) -> tuple[bool, str, str]:
     return True, address, acc_password
 
 
+async def _create_outlook_variant(uid: int, variant: int) -> tuple[bool, str, str]:
+    """Create one clean Outlook mailbox on a dedicated source route."""
+    source_domain = outlook_service.OUTLOOK_DOMAINS[variant - 1]
+    try:
+        result = await _deadline(
+            outlook_service.create_outlook(
+                source_domain=source_domain,
+                clean_only=True,
+            ),
+            MAILBOX_TIMEOUT,
+            f"Outlook {variant} create",
+        )
+        address = result["email"]
+    except Exception as e:
+        logger.error("outlook%s create: %s", variant, e)
+        return False, (
+            f"❌ Outlook {variant} abhi available nahi hai. "
+            "Thodi der baad dobara try karo."
+        ), ""
+
+    acc_password = generate_strong_password()
+    SESSIONS[uid] = {
+        "service": "outlook",
+        "email": address,
+        "acc_password": acc_password,
+        "token": None,
+        "seen_ids": set(),
+        "api_base": None,
+        "source_domain": source_domain,
+    }
+    return True, address, acc_password
+
+
 def _email_password_text(email: str, acc_password: str) -> str:
     return (
         f"✅ *Temp Email Ready!*\n\n"
@@ -565,6 +598,7 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         f"📌 *Commands:*\n"
         f"• /new — Real Gmail / GoogleMail inbox\n"
         f"• /outlook — Real @outlook.com / @hotmail.com inbox\n"
+        f"• /Outlook1 … /Outlook5 — 5 clean Outlook routes (no dot/+)\n"
         f"• /lovable — Verified email for lovable.dev\n"
         f"• /github — Verified email for github.com\n"
         f"• /bolt — Verified email for bolt.new\n"
@@ -890,6 +924,37 @@ for _t in ("lovable", "github", "bolt"):
         TARGET_CMDS[f"{_t}{_i}"] = _make_target_cmd(_t, _key)
 
 
+def _make_outlook_variant_cmd(variant: int):
+    async def _cmd(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+        uid = update.effective_user.id
+        msg = await update.message.reply_text(
+            f"⏳ Clean Outlook {variant} mailbox bana raha hoon..."
+        )
+        ok, email_or_err, acc_pw = await _create_outlook_variant(uid, variant)
+        if ok:
+            await msg.edit_text(
+                _email_password_text(email_or_err, acc_pw)
+                + f"\n\n🧭 Outlook route: `{variant}/5`"
+                + "\n✅ Address me dot (.) ya plus (+) nahi hai.",
+                parse_mode="Markdown",
+                reply_markup=email_created_kb(email_or_err, acc_pw),
+            )
+        else:
+            await msg.edit_text(
+                email_or_err,
+                parse_mode="Markdown",
+                reply_markup=generic_kb(),
+            )
+
+    return _cmd
+
+
+OUTLOOK_CMDS: dict[str, callable] = {
+    f"outlook{i}": _make_outlook_variant_cmd(i)
+    for i in range(1, 6)
+}
+
+
 async def cmd_options(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     arg = (ctx.args[0].lower() if ctx.args else "lovable")
     if arg.startswith("g"):
@@ -952,6 +1017,7 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         "📌 *Commands:*\n"
         "• /new — Real Gmail / GoogleMail inbox + strong password\n"
         "• /outlook — Real @outlook.com / @hotmail.com inbox\n"
+        "• /Outlook1 … /Outlook5 — 5 clean Outlook routes (no dot/+)\n"
         "• /lovable — Verified email for lovable.dev\n"
         "• /github — Verified email for github.com\n"
         "• /bolt — Verified email for bolt.new\n"
@@ -1069,13 +1135,25 @@ def outlook_result_kb() -> InlineKeyboardMarkup:
 
 
 def _outlook_alias_text(base: str, sets: dict) -> str:
-    return (
-        f"\U0001F4EC *Outlook address*\n\n"
-        f"*\u2705 OTP 100% yahin aayega*\n"
-        f"```\n{base}\n```\n\n"
-        f"\u2139\ufe0f Ye aapka asli Outlook/Hotmail address hai \u2014 iska mail "
-        f"aur OTP seedha aapke *isi inbox* me aayega."
+    dots = sets.get("dot", [])
+
+    def block(items):
+        return "```\n" + "\n".join(f"{i}. {a}" for i, a in enumerate(items, 1)) + "\n```"
+
+    parts = [
+        f"\U0001F4EC *Outlook addresses* — base `{base}`\n",
+        "*\u2705 OTP 100% yahin aayega*\n```\n" + base + "\n```",
+    ]
+    if dots:
+        parts.append(f"*\U0001F539 Dot (.) — {len(dots)}*\n{block(dots)}")
+    parts.append(
+        "\u2139\ufe0f Plus (+) band hai. Dot (.) wale addresses unique hain, par "
+        "Microsoft dots ko ignore nahi karta \u2014 inka OTP tabhi milega jab wo "
+        "address account me alias ho. Bot dono jagah (dot + base) inbox check "
+        "karta hai, isliye OTP miss nahi hoga; kabhi na aaye to upar wala base "
+        "address use karo."
     )
+    return "\n\n".join(parts)
 
 
 async def _send_outlook_aliases(msg, ctx, base: str, count: int, edit: bool = False):
@@ -1375,6 +1453,10 @@ def main():
     app.add_handler(CommandHandler("watch", cmd_watch))
     app.add_handler(CommandHandler("stopwatch", cmd_stopwatch))
     app.add_handler(CommandHandler("help", cmd_help))
+    for _name, _handler in OUTLOOK_CMDS.items():
+        # Telegram command matching is normally case-insensitive, but keeping
+        # the capitalized form explicit also supports clients that preserve it.
+        app.add_handler(CommandHandler([_name, _name.capitalize()], _handler))
     app.add_handler(CallbackQueryHandler(on_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
     logger.info("✅ Bot started. Polling...")

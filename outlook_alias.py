@@ -161,17 +161,18 @@ def generate_dot_aliases(email: str, count: int = 10) -> list[str]:
 
 
 def generate_sets(email: str, count: int = 10) -> dict[str, list[str]]:
-    """Sirf base address — no dots, no plus tags.
+    """Sirf DOT (.) addresses — plus (+) wale band.
 
-    User ne bola ki full address as-is chahiye (no dot, no plus), isliye
-    ab sirf base address return hota hai.
+    User ne bola ki `john+k.it47@outlook.com` jaise plus addresses nahi
+    chahiye, isliye ab sirf dot variants (`j.ohn.doe@outlook.com`) bante hain.
     """
     parsed = normalize_outlook(email)
     if not parsed:
         return {"plus": [], "dotplus": [], "dot": []}
     local, domain = parsed
+    count = max(1, min(count, 50))
     return {
         "plus": [],
         "dotplus": [],
-        "dot": [f"{local}@{domain}"],
+        "dot": generate_dot_aliases(email, count),
     }

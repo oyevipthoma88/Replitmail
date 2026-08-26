@@ -141,7 +141,19 @@ def _in_family(email: str, kind: str) -> bool:
     return any(lowered.endswith("@" + d) for d in FAMILY.get(kind, ()))
 
 
-async def create_mailbox(kind: str = "microsoft", allow_alias: bool = False) -> dict:
+def _is_clean_base_address(email: str) -> bool:
+    """Accept only a plain local part (no dot, plus, or other separators)."""
+    email = base_address(email)
+    local, separator, _domain = email.partition("@")
+    return bool(separator and re.fullmatch(r"[A-Za-z0-9]+", local))
+
+
+async def create_mailbox(
+    kind: str = "microsoft",
+    allow_alias: bool = False,
+    source_domain: str | None = None,
+    clean_only: bool = False,
+) -> dict:
     """Create a real provider mailbox on 22.do.
 
     kind="microsoft" -> @outlook.com / @hotmail.com
@@ -152,7 +164,7 @@ async def create_mailbox(kind: str = "microsoft", allow_alias: bool = False) -> 
     it away, and 22.do only ever lists mail under the base form. So the tag is
     stripped and the base address is what the bot hands out and polls.
     """
-    domains = OUTLOOK_DOMAINS[:]
+    domains = [source_domain] if source_domain else OUTLOOK_DOMAINS[:]
     random.shuffle(domains)
     last_err = "unknown"
     for _round in range(MAX_ROUNDS):
@@ -177,16 +189,73 @@ async def create_mailbox(kind: str = "microsoft", allow_alias: bool = False) -> 
                     if not _in_family(email or "", kind):
                         last_err = f"got out-of-family address: {email}"
                         continue
-                    return {"email": base_address(email)}
+                    address = base_address(email)
+                    if clean_only and not _is_clean_base_address(address):
+                        last_err = f"got non-clean address: {address}"
+                        continue
+                    return {
+                        "email": address,
+                        "source_domain": domain,
+                    }
         if _round < MAX_ROUNDS - 1:
             await asyncio.sleep(2)
     label = "@outlook.com / @hotmail.com" if kind == "microsoft" else "@gmail.com / @googlemail.com"
     raise RuntimeError(f"22.do abhi {label} nahi de raha ({last_err}).")
 
 
-async def create_outlook(allow_alias: bool = False) -> dict:
+async def create_outlook(
+    allow_alias: bool = False,
+    source_domain: str | None = None,
+    clean_only: bool = False,
+) -> dict:
     """Real @outlook.com / @hotmail.com mailbox."""
-    return await create_mailbox("microsoft", allow_alias=allow_alias)
+    return await create_mailbox(
+        "microsoft",
+        allow_alias=allow_alias,
+        source_domain=source_domain,
+        clean_only=clean_only,
+    )
+
+
+async def create_outlook_batch(count: int = 5) -> list[dict]:
+    """Create clean Outlook mailboxes through different 22.do source routes.
+
+    The source domain is only the upstream route used to request a mailbox;
+    the returned address is always a real @outlook.com or @hotmail.com address.
+    """
+    count = max(1, min(count, len(OUTLOOK_DOMAINS)))
+    sources = OUTLOOK_DOMAINS[:]
+    random.shuffle(sources)
+    results: list[dict] = []
+
+    # Run each source route independently, then use the next route if a
+    # particular pool is unavailable or returns a duplicate address.
+    for start in range(0, len(sources), count):
+        batch_sources = sources[start:start + count]
+        attempts = await asyncio.gather(
+            *(
+                create_mailbox(
+                    "microsoft",
+                    source_domain=source,
+                    clean_only=True,
+                )
+                for source in batch_sources
+            ),
+            return_exceptions=True,
+        )
+        for source, result in zip(batch_sources, attempts):
+            if isinstance(result, Exception):
+                continue
+            if any(item["email"] == result["email"] for item in results):
+                continue
+            result["source_domain"] = source
+            results.append(result)
+            if len(results) >= count:
+                return results
+
+    raise RuntimeError(
+        f"Sirf {len(results)}/{count} clean Outlook mailboxes mile."
+    )
 
 
 async def create_gmail(allow_alias: bool = False) -> dict:

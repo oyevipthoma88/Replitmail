@@ -29,6 +29,7 @@ target-site (Lovable / GitHub / Bolt.new) acceptance.
 | Menu | `/start` |
 | Best available mailbox | `/new` |
 | Real Outlook mailbox | `/outlook` |
+| Clean Outlook routes | `/Outlook1` … `/Outlook5` — har command alag upstream route se plain address deta hai; local part me dot (`.`) ya plus (`+`) nahi hota. |
 | Target ke liye mailbox | `/lovable`, `/github`, `/bolt` |
 | Specific option | `/bolt1`, `/bolt2`, … (`/options bolt` se list) |
 | Apne Gmail ke alias | `/gmail you@gmail.com` |
