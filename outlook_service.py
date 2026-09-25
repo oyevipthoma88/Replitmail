@@ -1,10 +1,8 @@
 """
 Outlook service — real @outlook.com / @hotmail.com temp addresses via 22.do.
 
-22.do's free API returns a random provider address when you POST a domain.
-Passing one of the Outlook-capable domains makes it return a genuine
-@outlook.com or @hotmail.com address — but 22.do randomly rotates the
-result, so we retry until we get an Outlook-family address.
+Uses curl_cffi to impersonate Chrome's TLS/JA3 fingerprint so Cloudflare's
+bot-fight mode lets the requests through (plain aiohttp was getting 403).
 
 Flow:
   1. GET  /inbox/                   -> establish Cloudflare cookies + XSRF
@@ -24,30 +22,13 @@ import urllib.parse
 
 import asyncio
 
-import aiohttp
+from curl_cffi import requests as cffi_requests
 
 BASE_URL = "https://22.do"
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 )
-
-# Realistic browser headers to survive Cloudflare's bot-fight mode.
-BROWSER_HEADERS = {
-    "User-Agent": USER_AGENT,
-    "Accept": "application/json, text/plain, */*",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Accept-Encoding": "gzip, deflate",  # no brotli: aiohttp cannot decode br without the Brotli package
-    "Sec-Ch-Ua": '"Chromium";v="131", "Not_A Brand";v="24"',
-    "Sec-Ch-Ua-Mobile": "?0",
-    "Sec-Ch-Ua-Platform": '"Windows"',
-    "Sec-Fetch-Dest": "empty",
-    "Sec-Fetch-Mode": "cors",
-    "Sec-Fetch-Site": "same-origin",
-    "Origin": BASE_URL,
-    "Referer": BASE_URL + "/inbox/",
-    "X-Requested-With": "XMLHttpRequest",
-}
 
 # All known 22.do domains that can yield @outlook.com / @hotmail.com.
 OUTLOOK_DOMAINS = [
@@ -66,45 +47,66 @@ ACCEPTED_DOMAINS = ("outlook.com", "hotmail.com")
 
 MAX_RETRIES_PER_DOMAIN = 4
 
+# curl_cffi impersonate target — Chrome 131 matches our User-Agent.
+IMPERSONATE = "chrome131"
+
 
 def _uuid_for(email: str) -> str:
     """Stable 32-char hex uuid (mimics FingerprintJS visitorId)."""
     return hashlib.md5(("replitmail:" + email).encode()).hexdigest()
 
 
-async def _warmup(session: aiohttp.ClientSession) -> None:
+def _sync_warmup() -> None:
     """Prime the session cookies by loading /inbox/ once — some Cloudflare
     checks fail if the API is hit cold."""
     try:
-        async with session.get(BASE_URL + "/inbox/", headers={
-            "User-Agent": USER_AGENT,
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9",
-        }, timeout=aiohttp.ClientTimeout(total=15)) as r:
-            await r.read()
+        cffi_requests.get(
+            BASE_URL + "/inbox/",
+            impersonate=IMPERSONATE,
+            headers={
+                "User-Agent": USER_AGENT,
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+            },
+            timeout=15,
+        )
     except Exception:
         pass
 
 
-async def _post_json(session: aiohttp.ClientSession, path: str, payload: dict, *, token: str | None = None) -> dict:
-    headers = dict(BROWSER_HEADERS)
-    headers["Content-Type"] = "application/json"
+def _sync_post_json(path: str, payload: dict, *, token: str | None = None) -> dict:
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate",
+        "Sec-Ch-Ua": '"Chromium";v="131", "Not_A Brand";v="24"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": '"Windows"',
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-origin",
+        "Origin": BASE_URL,
+        "Referer": BASE_URL + "/inbox/",
+        "X-Requested-With": "XMLHttpRequest",
+        "Content-Type": "application/json",
+    }
     if token:
         headers["Authorization"] = f"Bearer {token}"
     try:
-        async with session.post(
+        r = cffi_requests.post(
             BASE_URL + path,
             json=payload,
             headers=headers,
-            timeout=aiohttp.ClientTimeout(total=20),
-        ) as r:
-            text = await r.text()
-            if r.status >= 400:
-                return {"status": False, "msg": f"HTTP {r.status}"}
-            try:
-                return json.loads(text)
-            except Exception:
-                return {"status": False, "msg": text[:200]}
+            impersonate=IMPERSONATE,
+            timeout=20,
+        )
+        if r.status_code >= 400:
+            return {"status": False, "msg": f"HTTP {r.status_code}"}
+        try:
+            return r.json()
+        except Exception:
+            return {"status": False, "msg": r.text[:200]}
     except Exception as e:
         return {"status": False, "msg": f"{type(e).__name__}: {str(e)[:120]}"}
 
@@ -148,13 +150,62 @@ def _is_clean_base_address(email: str) -> bool:
     return bool(separator and re.fullmatch(r"[A-Za-z0-9]+", local))
 
 
+def _sync_create_mailbox(
+    kind: str = "microsoft",
+    source_domain: str | None = None,
+    clean_only: bool = False,
+) -> dict:
+    """Synchronous mailbox creation via curl_cffi (runs in thread executor)."""
+    domains = [source_domain] if source_domain else OUTLOOK_DOMAINS[:]
+    random.shuffle(domains)
+    last_err = "unknown"
+
+    # One persistent session per round so cookies carry through.
+    for _round in range(MAX_ROUNDS):
+        _sync_warmup()
+        for domain in domains:
+            for attempt in range(MAX_RETRIES_PER_DOMAIN):
+                data = _sync_post_json(
+                    "/action/mailbox/create",
+                    {"type": kind, "domain": domain},
+                )
+                if not data.get("status") or not data.get("data"):
+                    last_err = str(data.get("msg", data))[:120]
+                    if "403" in last_err or "Cloudflare" in last_err:
+                        time_sleep_sync(3)
+                    else:
+                        time_sleep_sync(1)
+                    continue
+                email = data["data"].get("email")
+                if not _in_family(email or "", kind):
+                    last_err = f"got out-of-family address: {email}"
+                    continue
+                address = base_address(email)
+                if clean_only and not _is_clean_base_address(address):
+                    last_err = f"got non-clean address: {address}"
+                    continue
+                return {
+                    "email": address,
+                    "source_domain": domain,
+                }
+        if _round < MAX_ROUNDS - 1:
+            time_sleep_sync(2)
+    label = "@outlook.com / @hotmail.com" if kind == "microsoft" else "@gmail.com / @googlemail.com"
+    raise RuntimeError(f"22.do abhi {label} nahi de raha ({last_err}).")
+
+
+def time_sleep_sync(seconds: float) -> None:
+    import time as _time
+    _time.sleep(seconds)
+
+
 async def create_mailbox(
     kind: str = "microsoft",
     allow_alias: bool = False,
     source_domain: str | None = None,
     clean_only: bool = False,
 ) -> dict:
-    """Create a real provider mailbox on 22.do.
+    """Create a real provider mailbox on 22.do (async wrapper around curl_cffi).
 
     kind="microsoft" -> @outlook.com / @hotmail.com
     kind="gmail"     -> @gmail.com / @googlemail.com
@@ -164,43 +215,11 @@ async def create_mailbox(
     it away, and 22.do only ever lists mail under the base form. So the tag is
     stripped and the base address is what the bot hands out and polls.
     """
-    domains = [source_domain] if source_domain else OUTLOOK_DOMAINS[:]
-    random.shuffle(domains)
-    last_err = "unknown"
-    for _round in range(MAX_ROUNDS):
-        connector = aiohttp.TCPConnector(ssl=False)
-        jar = aiohttp.CookieJar()
-        async with aiohttp.ClientSession(connector=connector, cookie_jar=jar) as s:
-            await _warmup(s)
-            for domain in domains:
-                for attempt in range(MAX_RETRIES_PER_DOMAIN):
-                    data = await _post_json(
-                        s, "/action/mailbox/create",
-                        {"type": kind, "domain": domain},
-                    )
-                    if not data.get("status") or not data.get("data"):
-                        last_err = str(data.get("msg", data))[:120]
-                        if "403" in last_err or "Cloudflare" in last_err:
-                            await asyncio.sleep(3)
-                        else:
-                            await asyncio.sleep(1)
-                        continue
-                    email = data["data"].get("email")
-                    if not _in_family(email or "", kind):
-                        last_err = f"got out-of-family address: {email}"
-                        continue
-                    address = base_address(email)
-                    if clean_only and not _is_clean_base_address(address):
-                        last_err = f"got non-clean address: {address}"
-                        continue
-                    return {
-                        "email": address,
-                        "source_domain": domain,
-                    }
-        if _round < MAX_ROUNDS - 1:
-            await asyncio.sleep(2)
-    label = "@outlook.com / @hotmail.com" if kind == "microsoft" else "@gmail.com / @googlemail.com"
-    raise RuntimeError(f"22.do abhi {label} nahi de raha ({last_err}).")
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        None,
+        lambda: _sync_create_mailbox(kind, source_domain=source_domain, clean_only=clean_only),
+    )
 
 
 async def create_outlook(
@@ -263,16 +282,20 @@ async def create_gmail(allow_alias: bool = False) -> dict:
     return await create_mailbox("gmail", allow_alias=allow_alias)
 
 
-async def get_token(email: str) -> str:
-    """Fetch a JWT token for reading the inbox of `email`."""
+def _sync_get_token(email: str) -> str:
     email = base_address(email)
     uuid = _uuid_for(email)
-    async with aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar()) as s:
-        await _warmup(s)
-        data = await _post_json(s, "/action/mailbox/applyToken", {"email": email, "uuid": uuid})
-        if not data.get("status") or not data.get("data"):
-            raise RuntimeError(f"get_token failed: {data.get('msg', data)}")
-        return data["data"]["token"]
+    _sync_warmup()
+    data = _sync_post_json(s_path := "/action/mailbox/applyToken", {"email": email, "uuid": uuid})
+    if not data.get("status") or not data.get("data"):
+        raise RuntimeError(f"get_token failed: {data.get('msg', data)}")
+    return data["data"]["token"]
+
+
+async def get_token(email: str) -> str:
+    """Fetch a JWT token for reading the inbox of `email`."""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, lambda: _sync_get_token(email))
 
 
 def undotted_address(email: str) -> str:
@@ -289,37 +312,56 @@ def undotted_address(email: str) -> str:
     return local.replace(".", "") + "@" + domain
 
 
+def _sync_get_messages_exact(email: str) -> list[dict]:
+    email = base_address(email)
+    try:
+        token = _sync_get_token(email)
+    except Exception:
+        return []
+    _sync_warmup()
+    data = _sync_post_json(
+        "/action/mailbox/message", {"email": email, "lastime": 0}, token=token
+    )
+    if not data.get("status"):
+        return []
+    msgs = data.get("data")
+    if not msgs or msgs is True:
+        return []
+    return msgs
+
+
 async def get_messages(email: str) -> list[dict]:
     """
     Return list of message metadata: [{messageId, subject, from, time}].
     Empty list if no messages.
     """
-    msgs = await _get_messages_exact(email)
+    loop = asyncio.get_event_loop()
+    msgs = await loop.run_in_executor(None, lambda: _sync_get_messages_exact(email))
     if msgs:
         return msgs
     alt = undotted_address(email)
     if alt != base_address(email):
-        return await _get_messages_exact(alt)
+        return await loop.run_in_executor(None, lambda: _sync_get_messages_exact(alt))
     return msgs
 
 
-async def _get_messages_exact(email: str) -> list[dict]:
-    email = base_address(email)
+def _sync_get_message_page(email: str, message_id: str) -> str:
+    cookie_email = urllib.parse.quote(base_address(email), safe="")
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Referer": BASE_URL + "/inbox/",
+        "Cookie": f"email={cookie_email}",
+    }
     try:
-        token = await get_token(email)
-    except Exception:
-        return []
-    async with aiohttp.ClientSession(cookie_jar=aiohttp.CookieJar()) as s:
-        await _warmup(s)
-        data = await _post_json(
-            s, "/action/mailbox/message", {"email": email, "lastime": 0}, token=token
+        r = cffi_requests.get(
+            f"{BASE_URL}/content/{message_id}",
+            headers=headers,
+            impersonate=IMPERSONATE,
+            timeout=20,
         )
-        if not data.get("status"):
-            return []
-        msgs = data.get("data")
-        if not msgs or msgs is True:
-            return []
-        return msgs
+        return r.text
+    except Exception:
+        return ""
 
 
 async def get_message(email: str, message_id: str) -> str:
@@ -328,34 +370,30 @@ async def get_message(email: str, message_id: str) -> str:
     /content/{messageId} page (authenticated by the email cookie).
     Returns raw HTML string.
     """
-    cookie_email = urllib.parse.quote(base_address(email), safe="")
-    headers = {
-        "User-Agent": USER_AGENT,
-        "Referer": BASE_URL + "/inbox/",
-        "Cookie": f"email={cookie_email}",
-    }
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        None, lambda: _sync_get_message_page(email, message_id)
+    )
+
+
+def _sync_delete_message(email: str, message_id: str) -> bool:
+    email = base_address(email)
     try:
-        async with aiohttp.ClientSession() as s:
-            async with s.get(
-                f"{BASE_URL}/content/{message_id}", headers=headers, timeout=aiohttp.ClientTimeout(total=20)
-            ) as r:
-                return await r.text()
+        token = _sync_get_token(email)
     except Exception:
-        return ""
+        return False
+    data = _sync_post_json(
+        "/action/mailbox/deleteMessage", {"messageId": message_id}, token=token
+    )
+    return bool(data.get("status"))
 
 
 async def delete_message(email: str, message_id: str) -> bool:
     """Delete a single message. Returns True on success."""
-    email = base_address(email)
-    try:
-        token = await get_token(email)
-    except Exception:
-        return False
-    async with aiohttp.ClientSession() as s:
-        data = await _post_json(
-            s, "/action/mailbox/deleteMessage", {"messageId": message_id}, token=token
-        )
-        return bool(data.get("status"))
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        None, lambda: _sync_delete_message(email, message_id)
+    )
 
 
 def _cf_decode(hex_str: str) -> str:
@@ -389,6 +427,25 @@ def _detail_field(page_html: str, label: str) -> str:
     return html.unescape(re.sub(r"<[^>]+>", "", _undo_cf_email(m.group(1)))).strip()
 
 
+def _sync_read_message_body(email: str, message_id: str, page: str) -> str:
+    m = re.search(r'<iframe[^>]*src="([^"]+)"', page, re.IGNORECASE)
+    if not m:
+        return ""
+    src = html.unescape(m.group(1))
+    if src.startswith("/"):
+        src = BASE_URL + src
+    headers = {
+        "User-Agent": USER_AGENT,
+        "Referer": f"{BASE_URL}/content/{message_id}",
+        "Cookie": f"email={urllib.parse.quote(base_address(email), safe='')}",
+    }
+    try:
+        r = cffi_requests.get(src, headers=headers, impersonate=IMPERSONATE, timeout=20)
+        return r.text
+    except Exception:
+        return ""
+
+
 async def read_message(email: str, message_id: str) -> dict:
     """Fetch one message as {subject, from, html}.
 
@@ -396,11 +453,17 @@ async def read_message(email: str, message_id: str) -> dict:
     pointing at /view/{blob}. Reading the shell alone gave "(No Subject)" from
     the site's <title> and no body at all, so the iframe is followed here.
     """
-    page = await get_message(email, message_id)
+    loop = asyncio.get_event_loop()
+    page = await loop.run_in_executor(
+        None, lambda: _sync_get_message_page(email, message_id)
+    )
     if not page or "<iframe" not in page.lower():
         alt = undotted_address(email)
         if alt != base_address(email):
-            page = await get_message(alt, message_id) or page
+            page_alt = await loop.run_in_executor(
+                None, lambda: _sync_get_message_page(alt, message_id)
+            )
+            page = page_alt or page
     if not page:
         return {"subject": "", "from": "", "html": ""}
 
@@ -410,20 +473,9 @@ async def read_message(email: str, message_id: str) -> dict:
     body = ""
     m = re.search(r'<iframe[^>]*src="([^"]+)"', page, re.IGNORECASE)
     if m:
-        src = html.unescape(m.group(1))
-        if src.startswith("/"):
-            src = BASE_URL + src
-        headers = {
-            "User-Agent": USER_AGENT,
-            "Referer": f"{BASE_URL}/content/{message_id}",
-            "Cookie": f"email={urllib.parse.quote(base_address(email), safe='')}",
-        }
-        try:
-            async with aiohttp.ClientSession() as s:
-                async with s.get(src, headers=headers, timeout=aiohttp.ClientTimeout(total=20)) as r:
-                    body = await r.text()
-        except Exception:
-            body = ""
+        body = await loop.run_in_executor(
+            None, lambda: _sync_read_message_body(email, message_id, page)
+        )
     if not body:
         m = re.search(r'<div class="content-iframe">(.*?)</div>', page, re.DOTALL | re.IGNORECASE)
         body = m.group(1) if m else ""

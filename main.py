@@ -51,9 +51,11 @@ logger = logging.getLogger("TempMailBot")
 # replacement dyno was already polling (double getUpdates).
 # Two guards below: hard per-operation deadlines, and a shutdown watchdog that
 # force-exits well before Heroku's SIGKILL.
-MAILBOX_TIMEOUT = float(os.getenv("MAILBOX_TIMEOUT", "60"))
+MAILBOX_TIMEOUT = float(os.getenv("MAILBOX_TIMEOUT", "120"))
 INBOX_TIMEOUT = float(os.getenv("INBOX_TIMEOUT", "30"))
 SHUTDOWN_GRACE = float(os.getenv("SHUTDOWN_GRACE", "12"))
+# Per-option sub-timeout so one slow upstream can't eat the whole budget.
+OPTION_TIMEOUT = float(os.getenv("OPTION_TIMEOUT", "25"))
 
 
 async def _deadline(coro, seconds: float, label: str = "operation"):
@@ -811,7 +813,8 @@ async def _create_for_target(uid: int, target: str, option: str | None = None) -
     else:
         try:
             fields, errors = await _deadline(
-                mail_options.build_best(target, acc_password, own_base),
+                mail_options.build_best(target, acc_password, own_base,
+                                        option_timeout=OPTION_TIMEOUT),
                 MAILBOX_TIMEOUT, "mailbox build")
         except Exception as e:
             logger.error("build_best %s: %s", target, e)

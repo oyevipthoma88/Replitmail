@@ -496,14 +496,27 @@ async def build(option_key: str, password: str, target: str | None = None,
 
 
 async def build_best(target: str, password: str,
-                     own_base: str | None = None) -> tuple[dict | None, list[str]]:
-    """Try every option for `target`, best one first."""
+                     own_base: str | None = None,
+                     option_timeout: float = 25.0) -> tuple[dict | None, list[str]]:
+    """Try every option for `target`, best one first.
+
+    Each option gets at most `option_timeout` seconds so one slow upstream
+    (22.do under Cloudflare challenge, Emailnator rate-limited) cannot eat
+    the entire MAILBOX_TIMEOUT budget and cause a 60s+ timeout error.
+    """
     errors: list[str] = []
     for key in order_for(target, own_base):
         try:
-            fields = await build(key, password, target, own_base)
+            fields = await asyncio.wait_for(
+                build(key, password, target, own_base),
+                timeout=option_timeout,
+            )
             fields["option"] = key
             return fields, errors
+        except asyncio.TimeoutError:
+            label = OPTIONS.get(key, {}).get("label", key)
+            errors.append(f"{label}: timed out after {int(option_timeout)}s")
+            logger.warning("option %s timed out for %s after %ss", key, target, option_timeout)
         except Exception as e:  # noqa: BLE001 - surfaced to the user
             label = OPTIONS.get(key, {}).get("label", key)
             errors.append(f"{label}: {e}")
