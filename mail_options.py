@@ -478,16 +478,15 @@ async def build(option_key: str, password: str, target: str | None = None,
     address instead of a signup that never sends a verification mail.
     """
     last_err = ""
-    for _attempt in range(6):
+    for _attempt in range(2):
         fields = await _build_once(option_key, password, target, own_base)
         address = fields.get("email", "")
         if await target_address_ok(target or "", address) is False:
             mark_address_taken(address)
             last_err = (
                 f"{site_for(target or '')} par is address ka account pehle se hai "
-                f"(shared pool burn ho chuka hai) — isi wajah se verification mail "
-                f"nahi aata tha. Apna khud ka Gmail set karo: `/gmail you@gmail.com`, "
-                f"phir dobara try karo."
+                f"(shared pool burn ho chuka hai). Apna khud ka Gmail set karo: "
+                f"`/gmail you@gmail.com`, phir dobara try karo."
             )
             logger.warning("address already registered, retrying: %s", address)
             continue

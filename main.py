@@ -58,7 +58,7 @@ INBOX_TIMEOUT = float(os.getenv("INBOX_TIMEOUT", "30"))
 # the new process to start polling -> 409 Conflict crash.
 SHUTDOWN_GRACE = float(os.getenv("SHUTDOWN_GRACE", "4"))
 # Per-option sub-timeout so one slow upstream can't eat the whole budget.
-OPTION_TIMEOUT = float(os.getenv("OPTION_TIMEOUT", "25"))
+OPTION_TIMEOUT = float(os.getenv("OPTION_TIMEOUT", "15"))
 # Seconds to wait before starting to poll. Gives the old dyno time to release
 # the getUpdates lock after SIGTERM, preventing 409 Conflict.
 STARTUP_DELAY = float(os.getenv("STARTUP_DELAY", "5"))
