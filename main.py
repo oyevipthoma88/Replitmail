@@ -53,9 +53,15 @@ logger = logging.getLogger("TempMailBot")
 # force-exits well before Heroku's SIGKILL.
 MAILBOX_TIMEOUT = float(os.getenv("MAILBOX_TIMEOUT", "120"))
 INBOX_TIMEOUT = float(os.getenv("INBOX_TIMEOUT", "30"))
-SHUTDOWN_GRACE = float(os.getenv("SHUTDOWN_GRACE", "12"))
+# Reduced from 12s to 4s: the old process actually stops polling ~3s after
+# SIGTERM, so 4s is enough. 12s kept the old process alive long enough for
+# the new process to start polling -> 409 Conflict crash.
+SHUTDOWN_GRACE = float(os.getenv("SHUTDOWN_GRACE", "4"))
 # Per-option sub-timeout so one slow upstream can't eat the whole budget.
 OPTION_TIMEOUT = float(os.getenv("OPTION_TIMEOUT", "25"))
+# Seconds to wait before starting to poll. Gives the old dyno time to release
+# the getUpdates lock after SIGTERM, preventing 409 Conflict.
+STARTUP_DELAY = float(os.getenv("STARTUP_DELAY", "5"))
 
 
 async def _deadline(coro, seconds: float, label: str = "operation"):
@@ -1462,11 +1468,30 @@ def main():
         app.add_handler(CommandHandler([_name, _name.capitalize()], _handler))
     app.add_handler(CallbackQueryHandler(on_callback))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
+    # Wait for any old dyno to release the Telegram getUpdates lock.
+    # Without this, the new process polls while the old one is still shutting
+    # down -> 409 Conflict -> crash (the root cause of the restart loop).
+    if STARTUP_DELAY > 0:
+        logger.info("⏳ Waiting %ss before polling (old dyno shutdown)...", int(STARTUP_DELAY))
+        import time as _time
+        _time.sleep(STARTUP_DELAY)
     logger.info("✅ Bot started. Polling...")
     # stop_signals=None -> our watchdog owns SIGTERM so the dyno always exits
     # inside Heroku's 30s window instead of being SIGKILLed (Error R12).
     _install_shutdown_watchdog(app)
-    app.run_polling(drop_pending_updates=True, stop_signals=None)
+    # Retry loop: if the old dyno hasn't released the getUpdates lock yet,
+    # Telegram returns 409 Conflict. We wait and retry instead of crashing.
+    for _attempt in range(4):
+        try:
+            app.run_polling(drop_pending_updates=True, stop_signals=None)
+            break
+        except Exception as e:
+            if "Conflict" in str(e) and _attempt < 3:
+                logger.warning("409 Conflict on attempt %d, retrying in 5s...", _attempt + 1)
+                import time as _time
+                _time.sleep(5)
+            else:
+                raise
 
 
 if __name__ == "__main__":
