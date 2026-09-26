@@ -1,1 +1,44 @@
-aW1wb3J0IGFzeW5jaW8KaW1wb3J0IHVuaXR0ZXN0CmZyb20gdW5pdHRlc3QubW9jayBpbXBvcnQgQXN5bmNNb2NrLCBNb2NrLCBwYXRjaAoKaW1wb3J0IGVtYWlsbmF0b3Jfc2VydmljZQppbXBvcnQgb3V0bG9va19hbGlhcwoKCmNsYXNzIEVtYWlsbmF0b3JUZXN0cyh1bml0dGVzdC5Jc29sYXRlZEFzeW5jaW9UZXN0Q2FzZSk6CiAgICBhc3luYyBkZWYgdGVzdF9nZW5lcmF0ZV91c2VzX2N1cnJlbnRfYXBpKHNlbGYpOgogICAgICAgIHJlc3BvbnNlID0gTW9jayhzdGF0dXNfY29kZT0yMDApCiAgICAgICAgcmVzcG9uc2UuanNvbi5yZXR1cm5fdmFsdWUgPSB7InN0YXR1cyI6ICJzdWNjZXNzIiwgImVtYWlsIjogImEuYkBnbWFpbC5jb20ifQogICAgICAgIHJlc3BvbnNlLnRleHQgPSAiIgogICAgICAgIHdpdGggcGF0Y2gub2JqZWN0KGVtYWlsbmF0b3Jfc2VydmljZSwgIl9wb3N0IiwgQXN5bmNNb2NrKHJldHVybl92YWx1ZT1yZXNwb25zZSkpIGFzIHBvc3Q6CiAgICAgICAgICAgIHNlbGYuYXNzZXJ0RXF1YWwoYXdhaXQgZW1haWxuYXRvcl9zZXJ2aWNlLmdlbmVyYXRlX2VtYWlsKFsiZG90R21haWwiXSksICJhLmJAZ21haWwuY29tIikKICAgICAgICAgICAgcG9zdC5hc3NlcnRfYXdhaXRlZF9vbmNlX3dpdGgoIi9hcGkvZ2VuZXJhdGUtZW1haWwiLCB7ImlkcyI6IFszXX0pCgogICAgYXN5bmMgZGVmIHRlc3RfbWVzc2FnZV9saXN0X21hcHNfY3VycmVudF9zaGFwZV9hbmRfZHJvcHNfbG9ja2VkX3Jvd3Moc2VsZik6CiAgICAgICAgcmVzcG9uc2UgPSBNb2NrKHN0YXR1c19jb2RlPTIwMCkKICAgICAgICByZXNwb25zZS5qc29uLnJldHVybl92YWx1ZSA9IHsibWVzc2FnZXMiOiBbCiAgICAgICAgICAgIHsiaWQiOiAib25lIiwgInN1YmplY3QiOiAiT1RQIiwgInRpbWVfYWdvIjogIm5vdyJ9LAogICAgICAgICAgICB7ImlkIjogIm9sZCIsICJsb2NrZWQiOiBUcnVlfSwKICAgICAgICBdfQogICAgICAgIHJlc3BvbnNlLnRleHQgPSAiIgogICAgICAgIHdpdGggcGF0Y2gub2JqZWN0KGVtYWlsbmF0b3Jfc2VydmljZSwgIl9wb3N0IiwgQXN5bmNNb2NrKHJldHVybl92YWx1ZT1yZXNwb25zZSkpOgogICAgICAgICAgICBtZXNzYWdlcyA9IGF3YWl0IGVtYWlsbmF0b3Jfc2VydmljZS5nZXRfbWVzc2FnZXMoImFAZ21haWwuY29tIikKICAgICAgICBzZWxmLmFzc2VydEVxdWFsKG1lc3NhZ2VzWzBdWyJtZXNzYWdlSUQiXSwgIm9uZSIpCiAgICAgICAgc2VsZi5hc3NlcnRFcXVhbChtZXNzYWdlc1swXVsidGltZSJdLCAibm93IikKICAgICAgICBzZWxmLmFzc2VydEVxdWFsKGxlbihtZXNzYWdlcyksIDEpCgoKY2xhc3MgT3V0bG9va0FsaWFzVGVzdHModW5pdHRlc3QuVGVzdENhc2UpOgogICAgZGVmIHRlc3RfZ2VuZXJhdGVkX2FsaWFzZXNfa2VlcF9vcmlnaW5hbF9tYWlsYm94KHNlbGYpOgogICAgICAgIHNldHMgPSBvdXRsb29rX2FsaWFzLmdlbmVyYXRlX3NldHMoImpvaG4uZG9lQG91dGxvb2suY29tIiwgNSkKICAgICAgICBhbGlhc2VzID0gc2V0c1sicGx1cyJdICsgc2V0c1siZG90cGx1cyJdCiAgICAgICAgc2VsZi5hc3NlcnRUcnVlKGFsaWFzZXMpCiAgICAgICAgc2VsZi5hc3NlcnRFcXVhbChzZXRzWyJkb3QiXSwgW10pCiAgICAgICAgZm9yIGFsaWFzIGluIGFsaWFzZXM6CiAgICAgICAgICAgIHNlbGYuYXNzZXJ0VHJ1ZShhbGlhcy5zdGFydHN3aXRoKCJqb2huLmRvZSsiKSkKICAgICAgICAgICAgc2VsZi5hc3NlcnRUcnVlKGFsaWFzLmVuZHN3aXRoKCJAb3V0bG9vay5jb20iKSkKCgppZiBfX25hbWVfXyA9PSAiX19tYWluX18iOgogICAgdW5pdHRlc3QubWFpbigp
+import asyncio
+import unittest
+from unittest.mock import AsyncMock, Mock, patch
+
+import emailnator_service
+import outlook_alias
+
+
+class EmailnatorTests(unittest.IsolatedAsyncioTestCase):
+    async def test_generate_uses_current_api(self):
+        response = Mock(status_code=200)
+        response.json.return_value = {"status": "success", "email": "a.b@gmail.com"}
+        response.text = ""
+        with patch.object(emailnator_service, "_post", AsyncMock(return_value=response)) as post:
+            self.assertEqual(await emailnator_service.generate_email(["dotGmail"]), "a.b@gmail.com")
+            post.assert_awaited_once_with("/api/generate-email", {"ids": [3]})
+
+    async def test_message_list_maps_current_shape_and_drops_locked_rows(self):
+        response = Mock(status_code=200)
+        response.json.return_value = {"messages": [
+            {"id": "one", "subject": "OTP", "time_ago": "now"},
+            {"id": "old", "locked": True},
+        ]}
+        response.text = ""
+        with patch.object(emailnator_service, "_post", AsyncMock(return_value=response)):
+            messages = await emailnator_service.get_messages("a@gmail.com")
+        self.assertEqual(messages[0]["messageID"], "one")
+        self.assertEqual(messages[0]["time"], "now")
+        self.assertEqual(len(messages), 1)
+
+
+class OutlookAliasTests(unittest.TestCase):
+    def test_generated_aliases_keep_original_mailbox(self):
+        sets = outlook_alias.generate_sets("john.doe@outlook.com", 5)
+        aliases = sets["plus"] + sets["dotplus"]
+        self.assertTrue(aliases)
+        self.assertEqual(sets["dot"], [])
+        for alias in aliases:
+            self.assertTrue(alias.startswith("john.doe+"))
+            self.assertTrue(alias.endswith("@outlook.com"))
+
+
+if __name__ == "__main__":
+    unittest.main()

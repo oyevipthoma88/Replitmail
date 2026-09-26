@@ -1,1 +1,174 @@
-IiIiQ3VzdG9tIE91dGxvb2sgYWxpYXMgZ2VuZXJhdG9yIOKAlCBHbWFpbCB3YWxlIC9nbWFpbCBjb21tYW5kIGthIE91dGxvb2sgdmVyc2lvbi4KClVzZXIgYXBuYSBhc2xpIEBvdXRsb29rLmNvbSAvIEBob3RtYWlsLmNvbSAvIEBsaXZlLmNvbSAvIEBtc24uY29tIGFkZHJlc3MgZGV0YQpoYWksIGh1bSB1c2tlIG11bHRpcGxlIGFkZHJlc3NlcyBiYW5hdGUgaGFpbiBqaW5rYSBtYWlsICp1c2kgZWsgaW5ib3gqIG1lCmFhdGEgaGFpLgoKSU1QT1JUQU5UIChidWcgZml4KToKTWljcm9zb2Z0IGtlIHNhYXRoIHNpcmYgKipwbHVzIHN1Yi1hZGRyZXNzaW5nKiogaGkgZ3VhcmFudGVlZCBzYW1lLWluYm94CmRlbGl2ZXJ5IGRldGEgaGFpOiAgam9obi5kb2UrZ2hAb3V0bG9vay5jb20gIC0+ICBqb2huLmRvZUBvdXRsb29rLmNvbQoKWWUgZG8gY2hlZXplaW4gbWFpbCBrbyBEVVNSRSBtYWlsYm94IG1lIGJoZWogZGV0aSBoYWluLCBpc2xpeWUgYWIgZ2VuZXJhdGUKbmFoaSBob3RpICh5YWhpIE9UUCBuYSBtaWxuZSBrYSBhc2xpIHJlYXNvbiB0aGEpOgogICogZG90IHZhcmlhbnRzICDigJQgR21haWwga2UgdWxhdCBNaWNyb3NvZnQgZG90cyBrbyBpZ25vcmUgTkFISSBrYXJ0YSwgc28KICAgIGoub2huQG91dGxvb2suY29tIGVrIGFsYWcgKHlhIG5vbi1leGlzdGVudCkgbWFpbGJveCBoYWkgLT4gT1RQIGthYmhpIG5haGkKICAgIGFheWVnYS4KICAqIGRvbWFpbiBtaXJyb3Ig4oCUIGhvdG1haWwuY29tIC8gbGl2ZS5jb20gLyBtc24uY29tIHRhYmhpIGthYW0ga2FydGUgaGFpbiBqYWIKICAgIHdvIGFsaWFzIGFjY291bnQgcGFyIGtodWQgcmVnaXN0ZXJlZCBobzsgYmxpbmQgbWlycm9yIGthcm5lIHNlIG1haWwgYm91bmNlCiAgICBobyBqYWF0YSBoYWkuCiIiIgpmcm9tIF9fZnV0dXJlX18gaW1wb3J0IGFubm90YXRpb25zCgppbXBvcnQgcmFuZG9tCmltcG9ydCByZQoKT1VUTE9PS19ET01BSU5TID0gKAogICAgIm91dGxvb2suY29tIiwKICAgICJob3RtYWlsLmNvbSIsCiAgICAibGl2ZS5jb20iLAogICAgIm1zbi5jb20iLAogICAgIm91dGxvb2suaW4iLAogICAgImhvdG1haWwuY28udWsiLAogICAgImxpdmUuY28udWsiLAogICAgIm91dGxvb2suY28udWsiLAogICAgImhvdG1haWwuZnIiLAogICAgImxpdmUuaW4iLAopCl9FTUFJTF9SRSA9IHJlLmNvbXBpbGUociJeW2EtejAtOV1bYS16MC05Ll8lKy1dezIsfUAoW2EtejAtOS4tXStcLlthLXpdezIsfSkkIikKCkRFRkFVTFRfVEFHUyA9ICgKICAgICJnaCIsICJkZXYiLCAiYXBwIiwgIndlYiIsICJhY2MiLCAib25lIiwgInR3byIsICJwcm8iLCAieDEiLCAibnAiLAogICAgImJvbHQiLCAibG92IiwgInNob3AiLCAibmV3cyIsICJiZXRhIiwgInRlc3QiLCAiaWQiLCAic2lnbiIsICJuMSIsICJuMiIsCiAgICAibWFpbCIsICJib3giLCAicnVuIiwgImdvIiwgInVwIiwgImtpdCIsICJsYWIiLCAiaHViIiwgIm5ldCIsICJ6b25lIiwKKQoKCmRlZiBub3JtYWxpemVfb3V0bG9vayhyYXc6IHN0cikgLT4gdHVwbGVbc3RyLCBzdHJdIHwgTm9uZToKICAgICIiIlJldHVybiAoYmFzZV9sb2NhbCwgZG9tYWluKSBvciBOb25lIGlmIGl0IGlzIG5vdCBhIE1pY3Jvc29mdCBhZGRyZXNzLiIiIgogICAgaWYgbm90IHJhdzoKICAgICAgICByZXR1cm4gTm9uZQogICAgcmF3ID0gcmF3LnN0cmlwKCkuc3RyaXAoIjw+IikubG93ZXIoKQogICAgbSA9IF9FTUFJTF9SRS5tYXRjaChyYXcpCiAgICBpZiBub3QgbToKICAgICAgICByZXR1cm4gTm9uZQogICAgbG9jYWwsIGRvbWFpbiA9IHJhdy5zcGxpdCgiQCIsIDEpCiAgICBpZiBkb21haW4gbm90IGluIE9VVExPT0tfRE9NQUlOUzoKICAgICAgICByZXR1cm4gTm9uZQogICAgIyAnK3RhZycgaGF0YSBkbywgcGFyIGRvdHMgd2Fpc2Uga2Ugd2Fpc2UgcmFraG8g4oCUIE1pY3Jvc29mdCBtZSBkb3RzCiAgICAjIGFkZHJlc3Mga2EgaGlzc2EgaGFpbi4KICAgIGxvY2FsID0gbG9jYWwuc3BsaXQoIisiLCAxKVswXQogICAgaWYgbm90ICgzIDw9IGxlbihsb2NhbCkgPD0gNjQpOgogICAgICAgIHJldHVybiBOb25lCiAgICByZXR1cm4gbG9jYWwsIGRvbWFpbgoKCmRlZiB0YWdfdmFyaWFudHMobG9jYWw6IHN0ciwgY291bnQ6IGludCkgLT4gbGlzdFtzdHJdOgogICAgIiIiUGx1cyBzdWItYWRkcmVzc2VzIOKAlCBNaWNyb3NvZnQgZGVsaXZlcnMgYWxsIG9mIHRoZXNlIHRvIG9uZSBpbmJveC4iIiIKICAgIHRhZ3MgPSBsaXN0KERFRkFVTFRfVEFHUykKICAgIHJhbmRvbS5zaHVmZmxlKHRhZ3MpCiAgICBvdXQgPSBbZiJ7bG9jYWx9K3t0fSIgZm9yIHQgaW4gdGFnc1s6Y291bnRdXQogICAgc2VlbiA9IHNldChvdXQpCiAgICBpID0gMQogICAgd2hpbGUgbGVuKG91dCkgPCBjb3VudDoKICAgICAgICBjYW5kID0gZiJ7bG9jYWx9K257aX17cmFuZG9tLnJhbmRpbnQoMTAsIDk5KX0iCiAgICAgICAgaWYgY2FuZCBub3QgaW4gc2VlbjoKICAgICAgICAgICAgc2Vlbi5hZGQoY2FuZCkKICAgICAgICAgICAgb3V0LmFwcGVuZChjYW5kKQogICAgICAgIGkgKz0gMQogICAgcmV0dXJuIG91dFs6Y291bnRdCgoKZGVmIGdlbmVyYXRlX2FsaWFzZXMoZW1haWw6IHN0ciwgY291bnQ6IGludCA9IDEwKSAtPiBsaXN0W3N0cl06CiAgICAiIiJNdWx0aXBsZSBPdXRsb29rIGFkZHJlc3NlcyB0aGF0IGFsbCBsYW5kIGluIHRoZSBzYW1lIHJlYWwgaW5ib3guCgogICAgU2lyZiBwbHVzIHN1Yi1hZGRyZXNzaW5nIOKAlCBzYW1lIGxvY2FsIHBhcnQsIHNhbWUgZG9tYWluLgogICAgIiIiCiAgICBwYXJzZWQgPSBub3JtYWxpemVfb3V0bG9vayhlbWFpbCkKICAgIGlmIG5vdCBwYXJzZWQ6CiAgICAgICAgcmV0dXJuIFtdCiAgICBsb2NhbCwgZG9tYWluID0gcGFyc2VkCiAgICBjb3VudCA9IG1heCgxLCBtaW4oY291bnQsIDUwKSkKICAgIHJldHVybiBbZiJ7bHB9QHtkb21haW59IiBmb3IgbHAgaW4gdGFnX3ZhcmlhbnRzKGxvY2FsLCBjb3VudCldCgoKZGVmIGRvdF92YXJpYW50cyhsb2NhbDogc3RyLCBsaW1pdDogaW50KSAtPiBsaXN0W3N0cl06CiAgICAiIiJDdXN0b20gZG90ICguKSBhZGRyZXNzZXMg4oCUIGxvY2FsIHBhcnQgbWUgZG90cyBpbmplY3Qga2Fya2UuCgogICAgTk9URTogTWljcm9zb2Z0LCBHbWFpbCBrZSB1bGF0LCBkb3RzIGtvICppZ25vcmUgbmFoaSBrYXJ0YSouIElzbGl5ZSB5ZQogICAgYWRkcmVzc2VzIHRhYmhpIHNhbWUgaW5ib3ggbWUgZGVsaXZlciBob25nZSBqYWIgd28gYWxpYXMgYWNjb3VudCBwYXIKICAgIGtodWQgYWRkL3JlZ2lzdGVyZWQgaG8uIEFnYXIgT1RQIG5hIGFheWUgdG8gcGx1cyAoKykgd2FsZSB1c2Uga2FybyDigJQKICAgIHdvIDEwMCUgZGVsaXZlciBob3RlIGhhaW4uCiAgICAiIiIKICAgIGJhc2UgPSBsb2NhbC5yZXBsYWNlKCIuIiwgIiIpCiAgICBnYXBzID0gbGVuKGJhc2UpIC0gMQogICAgaWYgZ2FwcyA8PSAwIG9yIGxpbWl0IDw9IDA6CiAgICAgICAgcmV0dXJuIFtdCiAgICB0b3RhbCA9IDEgPDwgZ2FwcwogICAgbWFza3MgPSBsaXN0KHJhbmdlKDEsIHRvdGFsKSkgaWYgdG90YWwgPD0gNDA5NiBlbHNlIHJhbmRvbS5zYW1wbGUocmFuZ2UoMSwgdG90YWwpLCA0MDk2KQogICAgcmFuZG9tLnNodWZmbGUobWFza3MpCiAgICBvdXQ6IGxpc3Rbc3RyXSA9IFtdCiAgICBzZWVuOiBzZXRbc3RyXSA9IHNldCgpCiAgICBmb3IgbWFzayBpbiBtYXNrczoKICAgICAgICBpZiBiaW4obWFzaykuY291bnQoIjEiKSA+IDM6ICAjIDMgc2UgenlhZGEgZG90cyBuYXR1cmFsIG5haGkgbGFndGUKICAgICAgICAgICAgY29udGludWUKICAgICAgICBidWYgPSBbXQogICAgICAgIGZvciBpLCBjaCBpbiBlbnVtZXJhdGUoYmFzZSk6CiAgICAgICAgICAgIGJ1Zi5hcHBlbmQoY2gpCiAgICAgICAgICAgIGlmIGkgPCBnYXBzIGFuZCAobWFzayA+PiBpKSAmIDE6CiAgICAgICAgICAgICAgICBidWYuYXBwZW5kKCIuIikKICAgICAgICBjYW5kID0gIiIuam9pbihidWYpCiAgICAgICAgaWYgIi4uIiBpbiBjYW5kIG9yIGNhbmQuc3RhcnRzd2l0aCgiLiIpIG9yIGNhbmQuZW5kc3dpdGgoIi4iKSBvciBjYW5kIGluIHNlZW46CiAgICAgICAgICAgIGNvbnRpbnVlCiAgICAgICAgc2Vlbi5hZGQoY2FuZCkKICAgICAgICBvdXQuYXBwZW5kKGNhbmQpCiAgICAgICAgaWYgbGVuKG91dCkgPj0gbGltaXQ6CiAgICAgICAgICAgIGJyZWFrCiAgICByZXR1cm4gb3V0CgoKZGVmIGRvdHRlZF90YWdfdmFyaWFudHMobG9jYWw6IHN0ciwgY291bnQ6IGludCkgLT4gbGlzdFtzdHJdOgogICAgIiIiRG90ICpkaWtobmUqIHdhbGUgYWRkcmVzc2VzIGpvIDEwMCUgZGVsaXZlciBob3RlIGhhaW4uCgogICAgRG90IGtvIHBsdXMtdGFnIGtlIGFuZGFyIHJha2h0ZSBoYWluOiBqb2huK2cuaDFAb3V0bG9vay5jb20g4oCUIE1pY3Jvc29mdAogICAgaXNrbyBiYXNlIGluYm94IG1lIGhpIGRlbGl2ZXIga2FydGEgaGFpLCBwYXIgc2l0ZSBrZSBsaXllIHllIGVrIG5heWEsCiAgICBkb3Qtd2FsYSB1bmlxdWUgYWRkcmVzcyBoYWkuCiAgICAiIiIKICAgIHRhZ3MgPSBsaXN0KERFRkFVTFRfVEFHUykKICAgIHJhbmRvbS5zaHVmZmxlKHRhZ3MpCiAgICBvdXQ6IGxpc3Rbc3RyXSA9IFtdCiAgICBzZWVuOiBzZXRbc3RyXSA9IHNldCgpCiAgICBpID0gMAogICAgd2hpbGUgbGVuKG91dCkgPCBjb3VudDoKICAgICAgICB0ID0gdGFnc1tpICUgbGVuKHRhZ3MpXQogICAgICAgIGNhbmQgPSBmIntsb2NhbH0re3RbMF19Lnt0WzE6XSBvciAneCd9e3JhbmRvbS5yYW5kaW50KDEsIDk5KX0iCiAgICAgICAgaSArPSAxCiAgICAgICAgaWYgY2FuZCBpbiBzZWVuOgogICAgICAgICAgICBjb250aW51ZQogICAgICAgIHNlZW4uYWRkKGNhbmQpCiAgICAgICAgb3V0LmFwcGVuZChjYW5kKQogICAgICAgIGlmIGkgPiBjb3VudCAqIDIwOgogICAgICAgICAgICBicmVhawogICAgcmV0dXJuIG91dFs6Y291bnRdCgoKZGVmIGdlbmVyYXRlX2RvdF9hbGlhc2VzKGVtYWlsOiBzdHIsIGNvdW50OiBpbnQgPSAxMCkgLT4gbGlzdFtzdHJdOgogICAgcGFyc2VkID0gbm9ybWFsaXplX291dGxvb2soZW1haWwpCiAgICBpZiBub3QgcGFyc2VkOgogICAgICAgIHJldHVybiBbXQogICAgbG9jYWwsIGRvbWFpbiA9IHBhcnNlZAogICAgY291bnQgPSBtYXgoMSwgbWluKGNvdW50LCA1MCkpCiAgICByZXR1cm4gW2Yie2xwfUB7ZG9tYWlufSIgZm9yIGxwIGluIGRvdF92YXJpYW50cyhsb2NhbCwgY291bnQpXQoKCmRlZiBnZW5lcmF0ZV9zZXRzKGVtYWlsOiBzdHIsIGNvdW50OiBpbnQgPSAxMCkgLT4gZGljdFtzdHIsIGxpc3Rbc3RyXV06CiAgICAiIiJXb3JraW5nIHNhbWUtaW5ib3ggYWxpYXNlczsgTWljcm9zb2Z0IGRvZXMgbm90IHN1cHBvcnQgR21haWwncyBkb3QgdHJpY2suIiIiCiAgICBwYXJzZWQgPSBub3JtYWxpemVfb3V0bG9vayhlbWFpbCkKICAgIGlmIG5vdCBwYXJzZWQ6CiAgICAgICAgcmV0dXJuIHsicGx1cyI6IFtdLCAiZG90cGx1cyI6IFtdLCAiZG90IjogW119CiAgICBsb2NhbCwgZG9tYWluID0gcGFyc2VkCiAgICBjb3VudCA9IG1heCgxLCBtaW4oY291bnQsIDUwKSkKICAgIHJldHVybiB7CiAgICAgICAgInBsdXMiOiBnZW5lcmF0ZV9hbGlhc2VzKGVtYWlsLCBjb3VudCksCiAgICAgICAgImRvdHBsdXMiOiBbZiJ7bHB9QHtkb21haW59IiBmb3IgbHAgaW4gZG90dGVkX3RhZ192YXJpYW50cyhsb2NhbCwgY291bnQpXSwKICAgICAgICAiZG90IjogW10sCiAgICB9Cg==
+"""Custom Outlook alias generator — Gmail wale /gmail command ka Outlook version.
+
+User apna asli @outlook.com / @hotmail.com / @live.com / @msn.com address deta
+hai, hum uske multiple addresses banate hain jinka mail *usi ek inbox* me
+aata hai.
+
+IMPORTANT (bug fix):
+Microsoft ke saath sirf **plus sub-addressing** hi guaranteed same-inbox
+delivery deta hai:  john.doe+gh@outlook.com  ->  john.doe@outlook.com
+
+Ye do cheezein mail ko DUSRE mailbox me bhej deti hain, isliye ab generate
+nahi hoti (yahi OTP na milne ka asli reason tha):
+  * dot variants  — Gmail ke ulat Microsoft dots ko ignore NAHI karta, so
+    j.ohn@outlook.com ek alag (ya non-existent) mailbox hai -> OTP kabhi nahi
+    aayega.
+  * domain mirror — hotmail.com / live.com / msn.com tabhi kaam karte hain jab
+    wo alias account par khud registered ho; blind mirror karne se mail bounce
+    ho jaata hai.
+"""
+from __future__ import annotations
+
+import random
+import re
+
+OUTLOOK_DOMAINS = (
+    "outlook.com",
+    "hotmail.com",
+    "live.com",
+    "msn.com",
+    "outlook.in",
+    "hotmail.co.uk",
+    "live.co.uk",
+    "outlook.co.uk",
+    "hotmail.fr",
+    "live.in",
+)
+_EMAIL_RE = re.compile(r"^[a-z0-9][a-z0-9._%+-]{2,}@([a-z0-9.-]+\.[a-z]{2,})$")
+
+DEFAULT_TAGS = (
+    "gh", "dev", "app", "web", "acc", "one", "two", "pro", "x1", "np",
+    "bolt", "lov", "shop", "news", "beta", "test", "id", "sign", "n1", "n2",
+    "mail", "box", "run", "go", "up", "kit", "lab", "hub", "net", "zone",
+)
+
+
+def normalize_outlook(raw: str) -> tuple[str, str] | None:
+    """Return (base_local, domain) or None if it is not a Microsoft address."""
+    if not raw:
+        return None
+    raw = raw.strip().strip("<>").lower()
+    m = _EMAIL_RE.match(raw)
+    if not m:
+        return None
+    local, domain = raw.split("@", 1)
+    if domain not in OUTLOOK_DOMAINS:
+        return None
+    # '+tag' hata do, par dots waise ke waise rakho — Microsoft me dots
+    # address ka hissa hain.
+    local = local.split("+", 1)[0]
+    if not (3 <= len(local) <= 64):
+        return None
+    return local, domain
+
+
+def tag_variants(local: str, count: int) -> list[str]:
+    """Plus sub-addresses — Microsoft delivers all of these to one inbox."""
+    tags = list(DEFAULT_TAGS)
+    random.shuffle(tags)
+    out = [f"{local}+{t}" for t in tags[:count]]
+    seen = set(out)
+    i = 1
+    while len(out) < count:
+        cand = f"{local}+n{i}{random.randint(10, 99)}"
+        if cand not in seen:
+            seen.add(cand)
+            out.append(cand)
+        i += 1
+    return out[:count]
+
+
+def generate_aliases(email: str, count: int = 10) -> list[str]:
+    """Multiple Outlook addresses that all land in the same real inbox.
+
+    Sirf plus sub-addressing — same local part, same domain.
+    """
+    parsed = normalize_outlook(email)
+    if not parsed:
+        return []
+    local, domain = parsed
+    count = max(1, min(count, 50))
+    return [f"{lp}@{domain}" for lp in tag_variants(local, count)]
+
+
+def dot_variants(local: str, limit: int) -> list[str]:
+    """Custom dot (.) addresses — local part me dots inject karke.
+
+    NOTE: Microsoft, Gmail ke ulat, dots ko *ignore nahi karta*. Isliye ye
+    addresses tabhi same inbox me deliver honge jab wo alias account par
+    khud add/registered ho. Agar OTP na aaye to plus (+) wale use karo —
+    wo 100% deliver hote hain.
+    """
+    base = local.replace(".", "")
+    gaps = len(base) - 1
+    if gaps <= 0 or limit <= 0:
+        return []
+    total = 1 << gaps
+    masks = list(range(1, total)) if total <= 4096 else random.sample(range(1, total), 4096)
+    random.shuffle(masks)
+    out: list[str] = []
+    seen: set[str] = set()
+    for mask in masks:
+        if bin(mask).count("1") > 3:  # 3 se zyada dots natural nahi lagte
+            continue
+        buf = []
+        for i, ch in enumerate(base):
+            buf.append(ch)
+            if i < gaps and (mask >> i) & 1:
+                buf.append(".")
+        cand = "".join(buf)
+        if ".." in cand or cand.startswith(".") or cand.endswith(".") or cand in seen:
+            continue
+        seen.add(cand)
+        out.append(cand)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def dotted_tag_variants(local: str, count: int) -> list[str]:
+    """Dot *dikhne* wale addresses jo 100% deliver hote hain.
+
+    Dot ko plus-tag ke andar rakhte hain: john+g.h1@outlook.com — Microsoft
+    isko base inbox me hi deliver karta hai, par site ke liye ye ek naya,
+    dot-wala unique address hai.
+    """
+    tags = list(DEFAULT_TAGS)
+    random.shuffle(tags)
+    out: list[str] = []
+    seen: set[str] = set()
+    i = 0
+    while len(out) < count:
+        t = tags[i % len(tags)]
+        cand = f"{local}+{t[0]}.{t[1:] or 'x'}{random.randint(1, 99)}"
+        i += 1
+        if cand in seen:
+            continue
+        seen.add(cand)
+        out.append(cand)
+        if i > count * 20:
+            break
+    return out[:count]
+
+
+def generate_dot_aliases(email: str, count: int = 10) -> list[str]:
+    parsed = normalize_outlook(email)
+    if not parsed:
+        return []
+    local, domain = parsed
+    count = max(1, min(count, 50))
+    return [f"{lp}@{domain}" for lp in dot_variants(local, count)]
+
+
+def generate_sets(email: str, count: int = 10) -> dict[str, list[str]]:
+    """Working same-inbox aliases; Microsoft does not support Gmail's dot trick."""
+    parsed = normalize_outlook(email)
+    if not parsed:
+        return {"plus": [], "dotplus": [], "dot": []}
+    local, domain = parsed
+    count = max(1, min(count, 50))
+    return {
+        "plus": generate_aliases(email, count),
+        "dotplus": [f"{lp}@{domain}" for lp in dotted_tag_variants(local, count)],
+        "dot": [],
+    }

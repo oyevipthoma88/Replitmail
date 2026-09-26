@@ -1,1 +1,119 @@
-IiIiCkVtYWlsbmF0b3Igc2VydmljZSDigJQgcmVhbCBAZ21haWwuY29tIC8gQGdvb2dsZW1haWwuY29tIHRlbXAgYWRkcmVzc2VzLgoiIiIKZnJvbSBfX2Z1dHVyZV9fIGltcG9ydCBhbm5vdGF0aW9ucwoKaW1wb3J0IGFzeW5jaW8KaW1wb3J0IGh0dHB4CgpCQVNFX1VSTCA9ICJodHRwczovL3d3dy5lbWFpbG5hdG9yLmNvbSIKVVNFUl9BR0VOVCA9ICgKICAgICJNb3ppbGxhLzUuMCAoV2luZG93cyBOVCAxMC4wOyBXaW42NDsgeDY0KSBBcHBsZVdlYktpdC81MzcuMzYgIgogICAgIihLSFRNTCwgbGlrZSBHZWNrbykgQ2hyb21lLzEzMS4wLjAuMCBTYWZhcmkvNTM3LjM2IgopCgpFTUFJTF9UWVBFX0lEUyA9IHsiZG9tYWluIjogMSwgInBsdXNHbWFpbCI6IDIsICJkb3RHbWFpbCI6IDMsICJnb29nbGVNYWlsIjogOH0KREVGQVVMVF9PUFRJT05TID0gWyJkb21haW4iLCAicGx1c0dtYWlsIiwgImRvdEdtYWlsIiwgImdvb2dsZU1haWwiXQoKX2NsaWVudDogaHR0cHguQXN5bmNDbGllbnQgfCBOb25lID0gTm9uZQoKCmFzeW5jIGRlZiBfZ2V0X2NsaWVudCgpIC0+IGh0dHB4LkFzeW5jQ2xpZW50OgogICAgZ2xvYmFsIF9jbGllbnQKICAgIGlmIF9jbGllbnQgaXMgTm9uZSBvciBfY2xpZW50LmlzX2Nsb3NlZDoKICAgICAgICBfY2xpZW50ID0gaHR0cHguQXN5bmNDbGllbnQoCiAgICAgICAgICAgIGh0dHAyPUZhbHNlLAogICAgICAgICAgICB0aW1lb3V0PWh0dHB4LlRpbWVvdXQoMzAuMCksCiAgICAgICAgICAgIGhlYWRlcnM9ewogICAgICAgICAgICAgICAgIlVzZXItQWdlbnQiOiBVU0VSX0FHRU5ULAogICAgICAgICAgICAgICAgIkFjY2VwdCI6ICJhcHBsaWNhdGlvbi9qc29uIiwKICAgICAgICAgICAgICAgICJBY2NlcHQtTGFuZ3VhZ2UiOiAiZW4tVVMsZW47cT0wLjkiLAogICAgICAgICAgICAgICAgIkFjY2VwdC1FbmNvZGluZyI6ICJnemlwLCBkZWZsYXRlIiwKICAgICAgICAgICAgICAgICJTZWMtQ2gtVWEiOiAnIkNocm9taXVtIjt2PSIxMzEiLCAiTm90X0EgQnJhbmQiO3Y9IjI0IicsCiAgICAgICAgICAgICAgICAiU2VjLUNoLVVhLU1vYmlsZSI6ICI/MCIsCiAgICAgICAgICAgICAgICAiU2VjLUNoLVVhLVBsYXRmb3JtIjogJyJXaW5kb3dzIicsCiAgICAgICAgICAgICAgICAiU2VjLUZldGNoLURlc3QiOiAiZG9jdW1lbnQiLAogICAgICAgICAgICAgICAgIlNlYy1GZXRjaC1Nb2RlIjogIm5hdmlnYXRlIiwKICAgICAgICAgICAgICAgICJTZWMtRmV0Y2gtU2l0ZSI6ICJub25lIiwKICAgICAgICAgICAgICAgICJTZWMtRmV0Y2gtVXNlciI6ICI/MSIsCiAgICAgICAgICAgICAgICAiVXBncmFkZS1JbnNlY3VyZS1SZXF1ZXN0cyI6ICIxIiwKICAgICAgICAgICAgfSwKICAgICAgICAgICAgZm9sbG93X3JlZGlyZWN0cz1UcnVlLAogICAgICAgICkKICAgIHJldHVybiBfY2xpZW50CgoKZGVmIF9oZWFkZXJzKCkgLT4gZGljdFtzdHIsIHN0cl06CiAgICByZXR1cm4gewogICAgICAgICJDb250ZW50LVR5cGUiOiAiYXBwbGljYXRpb24vanNvbiIsCiAgICAgICAgIlJlZmVyZXIiOiBCQVNFX1VSTCArICIvIiwKICAgICAgICAiT3JpZ2luIjogQkFTRV9VUkwsCiAgICAgICAgIlVzZXItQWdlbnQiOiBVU0VSX0FHRU5ULAogICAgICAgICJBY2NlcHQiOiAiYXBwbGljYXRpb24vanNvbiwgdGV4dC9wbGFpbiwgKi8qIiwKICAgICAgICAiQWNjZXB0LUxhbmd1YWdlIjogImVuLVVTLGVuO3E9MC45IiwKICAgICAgICAiU2VjLUZldGNoLURlc3QiOiAiZW1wdHkiLAogICAgICAgICJTZWMtRmV0Y2gtTW9kZSI6ICJjb3JzIiwKICAgICAgICAiU2VjLUZldGNoLVNpdGUiOiAic2FtZS1vcmlnaW4iLAogICAgfQoKCmFzeW5jIGRlZiBfcG9zdChwYXRoOiBzdHIsIHBheWxvYWQ6IGRpY3QsICosIF9yZXRyeTogYm9vbCA9IFRydWUpIC0+IGh0dHB4LlJlc3BvbnNlOgogICAgY2xpZW50ID0gYXdhaXQgX2dldF9jbGllbnQoKQogICAgcmVzcCA9IGF3YWl0IGNsaWVudC5wb3N0KEJBU0VfVVJMICsgcGF0aCwganNvbj1wYXlsb2FkLCBoZWFkZXJzPV9oZWFkZXJzKCkpCiAgICBpZiByZXNwLnN0YXR1c19jb2RlIGluICg0MjksIDUwMiwgNTAzLCA1MDQpIGFuZCBfcmV0cnk6CiAgICAgICAgYXdhaXQgYXN5bmNpby5zbGVlcCgyKQogICAgICAgIHJldHVybiBhd2FpdCBfcG9zdChwYXRoLCBwYXlsb2FkLCBfcmV0cnk9RmFsc2UpCiAgICByZXR1cm4gcmVzcAoKCmFzeW5jIGRlZiBnZW5lcmF0ZV9lbWFpbChvcHRpb25zOiBsaXN0W3N0cl0gfCBOb25lID0gTm9uZSkgLT4gc3RyOgogICAgb3B0cyA9IG9wdGlvbnMgb3IgREVGQVVMVF9PUFRJT05TCiAgICBpZHMgPSBbRU1BSUxfVFlQRV9JRFNbbmFtZV0gZm9yIG5hbWUgaW4gb3B0cyBpZiBuYW1lIGluIEVNQUlMX1RZUEVfSURTXQogICAgaWYgbm90IGlkczoKICAgICAgICByYWlzZSBSdW50aW1lRXJyb3IoImdlbmVyYXRlLWVtYWlsOiBubyB2YWxpZCBlbWFpbCB0eXBlIHNlbGVjdGVkIikKICAgIHJlc3AgPSBhd2FpdCBfcG9zdCgiL2FwaS9nZW5lcmF0ZS1lbWFpbCIsIHsiaWRzIjogaWRzfSkKICAgIGlmIHJlc3Auc3RhdHVzX2NvZGUgPj0gNDAwOgogICAgICAgIHJhaXNlIFJ1bnRpbWVFcnJvcihmImdlbmVyYXRlLWVtYWlsIGZhaWxlZCAoe3Jlc3Auc3RhdHVzX2NvZGV9KToge3Jlc3AudGV4dFs6MjAwXX0iKQogICAgZGF0YSA9IHJlc3AuanNvbigpCiAgICBlbWFpbHMgPSBkYXRhLmdldCgiZW1haWwiKQogICAgaWYgaXNpbnN0YW5jZShlbWFpbHMsIHN0cik6CiAgICAgICAgcmV0dXJuIGVtYWlscwogICAgaWYgaXNpbnN0YW5jZShlbWFpbHMsIGxpc3QpIGFuZCBlbWFpbHM6CiAgICAgICAgcmV0dXJuIGVtYWlsc1swXQogICAgcmFpc2UgUnVudGltZUVycm9yKGYiZ2VuZXJhdGUtZW1haWw6IHVuZXhwZWN0ZWQgcmVzcG9uc2Uge3Jlc3AudGV4dFs6MjAwXX0iKQoKCmFzeW5jIGRlZiBnZXRfbWVzc2FnZXMoZW1haWw6IHN0cikgLT4gbGlzdFtkaWN0XToKICAgIHJlc3AgPSBhd2FpdCBfcG9zdCgiL2FwaS9tZXNzYWdlLWxpc3QiLCB7ImVtYWlsIjogZW1haWwsICJsaW1pdCI6IDIwfSkKICAgIGlmIHJlc3Auc3RhdHVzX2NvZGUgPj0gNDAwOgogICAgICAgIHJhaXNlIFJ1bnRpbWVFcnJvcihmIm1lc3NhZ2UtbGlzdCBmYWlsZWQgKHtyZXNwLnN0YXR1c19jb2RlfSk6IHtyZXNwLnRleHRbOjIwMF19IikKICAgIGRhdGEgPSByZXNwLmpzb24oKQogICAgbWVzc2FnZXMgPSBkYXRhLmdldCgibWVzc2FnZXMiLCBkYXRhLmdldCgibWVzc2FnZURhdGEiLCBbXSkpIG9yIFtdCiAgICAjIEtlZXAgdGhlIHNoYXBlIGV4cGVjdGVkIGJ5IHRoZSBib3Qgd2hpbGUgYWNjZXB0aW5nIEVtYWlsbmF0b3IncyBuZXcgQVBJLgogICAgcmV0dXJuIFsKICAgICAgICB7CiAgICAgICAgICAgICoqbWVzc2FnZSwKICAgICAgICAgICAgIm1lc3NhZ2VJRCI6IG1lc3NhZ2UuZ2V0KCJtZXNzYWdlSUQiKSBvciBtZXNzYWdlLmdldCgiaWQiKSwKICAgICAgICAgICAgInRpbWUiOiBtZXNzYWdlLmdldCgidGltZSIpIG9yIG1lc3NhZ2UuZ2V0KCJ0aW1lX2FnbyIpIG9yICIiLAogICAgICAgIH0KICAgICAgICBmb3IgbWVzc2FnZSBpbiBtZXNzYWdlcwogICAgICAgIGlmIG5vdCBtZXNzYWdlLmdldCgibG9ja2VkIikKICAgIF0KCgphc3luYyBkZWYgZ2V0X21lc3NhZ2UoZW1haWw6IHN0ciwgbWVzc2FnZV9pZDogc3RyKSAtPiBzdHI6CiAgICBjbGllbnQgPSBhd2FpdCBfZ2V0X2NsaWVudCgpCiAgICByZXNwID0gYXdhaXQgY2xpZW50LmdldCgKICAgICAgICBCQVNFX1VSTCArICIvYXBpL21lc3NhZ2UvIiArIGh0dHB4LlVSTChtZXNzYWdlX2lkKS5yYXdfcGF0aC5kZWNvZGUoKSwKICAgICAgICBoZWFkZXJzPV9oZWFkZXJzKCksCiAgICApCiAgICBpZiByZXNwLnN0YXR1c19jb2RlID49IDQwMDoKICAgICAgICByYWlzZSBSdW50aW1lRXJyb3IoZiJnZXRfbWVzc2FnZSBmYWlsZWQgKHtyZXNwLnN0YXR1c19jb2RlfSk6IHtyZXNwLnRleHRbOjIwMF19IikKICAgIHJldHVybiByZXNwLnRleHQKCgphc3luYyBkZWYgYWNsb3NlKCkgLT4gTm9uZToKICAgIGdsb2JhbCBfY2xpZW50CiAgICBpZiBfY2xpZW50IGlzIG5vdCBOb25lIGFuZCBub3QgX2NsaWVudC5pc19jbG9zZWQ6CiAgICAgICAgYXdhaXQgX2NsaWVudC5hY2xvc2UoKQogICAgX2NsaWVudCA9IE5vbmUK
+"""
+Emailnator service — real @gmail.com / @googlemail.com temp addresses.
+"""
+from __future__ import annotations
+
+import asyncio
+import httpx
+
+BASE_URL = "https://www.emailnator.com"
+USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+)
+
+EMAIL_TYPE_IDS = {"domain": 1, "plusGmail": 2, "dotGmail": 3, "googleMail": 8}
+DEFAULT_OPTIONS = ["domain", "plusGmail", "dotGmail", "googleMail"]
+
+_client: httpx.AsyncClient | None = None
+
+
+async def _get_client() -> httpx.AsyncClient:
+    global _client
+    if _client is None or _client.is_closed:
+        _client = httpx.AsyncClient(
+            http2=False,
+            timeout=httpx.Timeout(30.0),
+            headers={
+                "User-Agent": USER_AGENT,
+                "Accept": "application/json",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Accept-Encoding": "gzip, deflate",
+                "Sec-Ch-Ua": '"Chromium";v="131", "Not_A Brand";v="24"',
+                "Sec-Ch-Ua-Mobile": "?0",
+                "Sec-Ch-Ua-Platform": '"Windows"',
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "none",
+                "Sec-Fetch-User": "?1",
+                "Upgrade-Insecure-Requests": "1",
+            },
+            follow_redirects=True,
+        )
+    return _client
+
+
+def _headers() -> dict[str, str]:
+    return {
+        "Content-Type": "application/json",
+        "Referer": BASE_URL + "/",
+        "Origin": BASE_URL,
+        "User-Agent": USER_AGENT,
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-origin",
+    }
+
+
+async def _post(path: str, payload: dict, *, _retry: bool = True) -> httpx.Response:
+    client = await _get_client()
+    resp = await client.post(BASE_URL + path, json=payload, headers=_headers())
+    if resp.status_code in (429, 502, 503, 504) and _retry:
+        await asyncio.sleep(2)
+        return await _post(path, payload, _retry=False)
+    return resp
+
+
+async def generate_email(options: list[str] | None = None) -> str:
+    opts = options or DEFAULT_OPTIONS
+    ids = [EMAIL_TYPE_IDS[name] for name in opts if name in EMAIL_TYPE_IDS]
+    if not ids:
+        raise RuntimeError("generate-email: no valid email type selected")
+    resp = await _post("/api/generate-email", {"ids": ids})
+    if resp.status_code >= 400:
+        raise RuntimeError(f"generate-email failed ({resp.status_code}): {resp.text[:200]}")
+    data = resp.json()
+    emails = data.get("email")
+    if isinstance(emails, str):
+        return emails
+    if isinstance(emails, list) and emails:
+        return emails[0]
+    raise RuntimeError(f"generate-email: unexpected response {resp.text[:200]}")
+
+
+async def get_messages(email: str) -> list[dict]:
+    resp = await _post("/api/message-list", {"email": email, "limit": 20})
+    if resp.status_code >= 400:
+        raise RuntimeError(f"message-list failed ({resp.status_code}): {resp.text[:200]}")
+    data = resp.json()
+    messages = data.get("messages", data.get("messageData", [])) or []
+    # Keep the shape expected by the bot while accepting Emailnator's new API.
+    return [
+        {
+            **message,
+            "messageID": message.get("messageID") or message.get("id"),
+            "time": message.get("time") or message.get("time_ago") or "",
+        }
+        for message in messages
+        if not message.get("locked")
+    ]
+
+
+async def get_message(email: str, message_id: str) -> str:
+    client = await _get_client()
+    resp = await client.get(
+        BASE_URL + "/api/message/" + httpx.URL(message_id).raw_path.decode(),
+        headers=_headers(),
+    )
+    if resp.status_code >= 400:
+        raise RuntimeError(f"get_message failed ({resp.status_code}): {resp.text[:200]}")
+    return resp.text
+
+
+async def aclose() -> None:
+    global _client
+    if _client is not None and not _client.is_closed:
+        await _client.aclose()
+    _client = None
