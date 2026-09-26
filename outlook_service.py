@@ -19,13 +19,10 @@ from curl_cffi import requests as cffi_requests
 
 BASE_URL = "https://22.do"
 USER_AGENT = (
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) "
-    "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 "
-    "Mobile/15E148 Safari/604.1"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 )
-# 22.do currently blocks Chromium fingerprints from common cloud-host IPs,
-# while its mobile Safari route serves the same public mailbox API normally.
-IMPERSONATE = "safari17_2_ios"
+IMPERSONATE = "chrome131"
 
 OUTLOOK_DOMAINS = [
     "colabeta.com",
@@ -53,19 +50,19 @@ _warmed = False
 
 
 def _get_session() -> cffi_requests.Session:
-    global _session, _warmed
+    global _session
     with _session_lock:
         if _session is None:
             _session = cffi_requests.Session(impersonate=IMPERSONATE)
-            _warmed = False
         return _session
 
 
 def _warmup_once() -> None:
-    """Load /inbox/ once to establish Cloudflare cookies. Idempotent."""
+    """Load /inbox/ once to establish Cloudflare cookies. Idempotent + thread-safe."""
     global _warmed
-    if _warmed:
-        return
+    with _session_lock:
+        if _warmed:
+            return
     s = _get_session()
     try:
         s.get(
@@ -77,7 +74,8 @@ def _warmup_once() -> None:
             },
             timeout=10,
         )
-        _warmed = True
+        with _session_lock:
+            _warmed = True
     except Exception:
         pass
 
@@ -88,6 +86,9 @@ def _post_json(path: str, payload: dict, *, token: str | None = None) -> dict:
         "User-Agent": USER_AGENT,
         "Accept": "application/json, text/plain, */*",
         "Accept-Language": "en-US,en;q=0.9",
+        "Sec-Ch-Ua": '"Chromium";v="131", "Not_A Brand";v="24"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": '"Windows"',
         "Sec-Fetch-Dest": "empty",
         "Sec-Fetch-Mode": "cors",
         "Sec-Fetch-Site": "same-origin",
@@ -162,9 +163,9 @@ def _sync_create_mailbox(
                 last_err = f"non-clean: {address}"
                 continue
             return {"email": address, "source_domain": domain}
-        # Reset warmed state so next round re-solves Cloudflare if needed.
         global _warmed
-        _warmed = False
+        with _session_lock:
+            _warmed = False
 
     label = "@outlook.com / @hotmail.com" if kind == "microsoft" else "@gmail.com / @googlemail.com"
     raise RuntimeError(f"22.do abhi {label} nahi de raha ({last_err}).")
@@ -176,8 +177,7 @@ async def create_mailbox(
     source_domain: str | None = None,
     clean_only: bool = False,
 ) -> dict:
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(
+    return await asyncio.get_running_loop().run_in_executor(
         None,
         lambda: _sync_create_mailbox(kind, source_domain=source_domain, clean_only=clean_only),
     )
@@ -238,8 +238,7 @@ def _sync_get_token(email: str) -> str:
 
 
 async def get_token(email: str) -> str:
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, lambda: _sync_get_token(email))
+    return await asyncio.get_running_loop().run_in_executor(None, lambda: _sync_get_token(email))
 
 
 def undotted_address(email: str) -> str:
@@ -268,7 +267,7 @@ def _sync_get_messages_exact(email: str) -> list[dict]:
 
 
 async def get_messages(email: str) -> list[dict]:
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     msgs = await loop.run_in_executor(None, lambda: _sync_get_messages_exact(email))
     if msgs:
         return msgs
@@ -294,8 +293,7 @@ def _sync_get_message_page(email: str, message_id: str) -> str:
 
 
 async def get_message(email: str, message_id: str) -> str:
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(
+    return await asyncio.get_running_loop().run_in_executor(
         None, lambda: _sync_get_message_page(email, message_id)
     )
 
@@ -313,8 +311,7 @@ def _sync_delete_message(email: str, message_id: str) -> bool:
 
 
 async def delete_message(email: str, message_id: str) -> bool:
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(
+    return await asyncio.get_running_loop().run_in_executor(
         None, lambda: _sync_delete_message(email, message_id)
     )
 
@@ -370,7 +367,7 @@ def _sync_read_message_body(email: str, message_id: str, page: str) -> str:
 
 
 async def read_message(email: str, message_id: str) -> dict:
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     page = await loop.run_in_executor(
         None, lambda: _sync_get_message_page(email, message_id)
     )

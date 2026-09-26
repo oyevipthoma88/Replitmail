@@ -51,7 +51,7 @@ logger = logging.getLogger("TempMailBot")
 # replacement dyno was already polling (double getUpdates).
 # Two guards below: hard per-operation deadlines, and a shutdown watchdog that
 # force-exits well before Heroku's SIGKILL.
-MAILBOX_TIMEOUT = float(os.getenv("MAILBOX_TIMEOUT", "120"))
+MAILBOX_TIMEOUT = float(os.getenv("MAILBOX_TIMEOUT", "60"))
 INBOX_TIMEOUT = float(os.getenv("INBOX_TIMEOUT", "30"))
 # Reduced from 12s to 4s: the old process actually stops polling ~3s after
 # SIGTERM, so 4s is enough. 12s kept the old process alive long enough for
