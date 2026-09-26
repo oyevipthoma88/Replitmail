@@ -752,7 +752,11 @@ async def _watch_job(ctx: ContextTypes.DEFAULT_TYPE):
     if not session:
         ctx.job.schedule_removal()
         return
-    messages = await service_get_messages(session)
+    try:
+        messages = await _deadline(service_get_messages(session), INBOX_TIMEOUT, "watch poll")
+    except Exception as e:
+        logger.warning("watch job inbox: %s", e)
+        return
     if session["service"] == "emailnator":
         messages = [m for m in messages if m.get("id") != "ADSVPN"]
     for msg in messages:
@@ -1144,8 +1148,7 @@ def outlook_result_kb() -> InlineKeyboardMarkup:
 
 
 def _outlook_alias_text(base: str, sets: dict) -> str:
-    plus = sets.get("plus", [])
-    dotplus = sets.get("dotplus", [])
+    dots = sets.get("dot", [])
 
     def block(items):
         return "```\n" + "\n".join(f"{i}. {a}" for i, a in enumerate(items, 1)) + "\n```"
@@ -1154,21 +1157,21 @@ def _outlook_alias_text(base: str, sets: dict) -> str:
         f"\U0001F4EC *Outlook addresses* — base `{base}`\n",
         "*\u2705 OTP 100% yahin aayega*\n```\n" + base + "\n```",
     ]
-    if plus:
-        parts.append(f"*\U0001F539 Plus aliases — {len(plus)}*\n{block(plus)}")
-    if dotplus:
-        parts.append(f"*\U0001F538 Dot-style plus aliases — {len(dotplus)}*\n{block(dotplus)}")
+    if dots:
+        parts.append(f"*\U0001F539 Dot (.) — {len(dots)}*\n{block(dots)}")
     parts.append(
-        "\u2139\ufe0f Microsoft Gmail ki tarah dots ignore nahi karta. Isliye sirf "
-        "plus aliases diye gaye hain, jinka mail isi asli Outlook inbox me aata hai. "
-        "Agar koi website `+` reject kare to upar wala base address use karo."
+        "\u2139\ufe0f Plus (+) band hai. Dot (.) wale addresses unique hain, par "
+        "Microsoft dots ko ignore nahi karta \u2014 inka OTP tabhi milega jab wo "
+        "address account me alias ho. Bot dono jagah (dot + base) inbox check "
+        "karta hai, isliye OTP miss nahi hoga; kabhi na aaye to upar wala base "
+        "address use karo."
     )
     return "\n\n".join(parts)
 
 
 async def _send_outlook_aliases(msg, ctx, base: str, count: int, edit: bool = False):
     sets = outlook_alias.generate_sets(base, count=count)
-    if not any(sets.values()):
+    if not sets.get("dot"):
         text = (
             "❌ Ye valid Outlook address nahi lagta. "
             "`@outlook.com` / `@hotmail.com` / `@live.com` / `@msn.com` chalega."

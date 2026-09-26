@@ -496,7 +496,7 @@ async def build(option_key: str, password: str, target: str | None = None,
 
 async def build_best(target: str, password: str,
                      own_base: str | None = None,
-                     option_timeout: float = 25.0) -> tuple[dict | None, list[str]]:
+                     option_timeout: float = 15.0) -> tuple[dict | None, list[str]]:
     """Try every option for `target`, best one first.
 
     Each option gets at most `option_timeout` seconds so one slow upstream
