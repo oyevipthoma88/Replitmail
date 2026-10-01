@@ -22,7 +22,11 @@ USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 )
-IMPERSONATE = "chrome131"
+# Cloudflare on 22.do now 403s old Chrome fingerprints (chrome124/131).
+# Rotate through currently-accepted fingerprints; switch on any 403.
+FINGERPRINTS = ["chrome136", "firefox133", "safari17_0", "chrome133a", "safari18_0"]
+_fp = {"i": 0}
+IMPERSONATE = FINGERPRINTS[0]
 
 OUTLOOK_DOMAINS = [
     "colabeta.com",
@@ -53,8 +57,27 @@ def _get_session() -> cffi_requests.Session:
     global _session
     with _session_lock:
         if _session is None:
-            _session = cffi_requests.Session(impersonate=IMPERSONATE)
+            _session = _new_session()
         return _session
+
+
+def _new_session():
+    for _ in range(len(FINGERPRINTS)):
+        fp = FINGERPRINTS[_fp["i"] % len(FINGERPRINTS)]
+        try:
+            return cffi_requests.Session(impersonate=fp)
+        except Exception:
+            _fp["i"] += 1
+    return cffi_requests.Session(impersonate="chrome")
+
+
+def _rotate_fingerprint() -> None:
+    """Drop the blocked session and move to the next browser fingerprint."""
+    global _session, _warmed
+    with _session_lock:
+        _fp["i"] += 1
+        _session = None
+        _warmed = False
 
 
 def _warmup_once() -> None:
@@ -68,7 +91,6 @@ def _warmup_once() -> None:
         s.get(
             BASE_URL + "/inbox/",
             headers={
-                "User-Agent": USER_AGENT,
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                 "Accept-Language": "en-US,en;q=0.9",
             },
@@ -83,12 +105,8 @@ def _warmup_once() -> None:
 def _post_json(path: str, payload: dict, *, token: str | None = None) -> dict:
     s = _get_session()
     headers = {
-        "User-Agent": USER_AGENT,
         "Accept": "application/json, text/plain, */*",
         "Accept-Language": "en-US,en;q=0.9",
-        "Sec-Ch-Ua": '"Chromium";v="131", "Not_A Brand";v="24"',
-        "Sec-Ch-Ua-Mobile": "?0",
-        "Sec-Ch-Ua-Platform": '"Windows"',
         "Sec-Fetch-Dest": "empty",
         "Sec-Fetch-Mode": "cors",
         "Sec-Fetch-Site": "same-origin",
@@ -101,6 +119,10 @@ def _post_json(path: str, payload: dict, *, token: str | None = None) -> dict:
         headers["Authorization"] = f"Bearer {token}"
     try:
         r = s.post(BASE_URL + path, json=payload, headers=headers, timeout=12)
+        if r.status_code in (403, 503):
+            _rotate_fingerprint()
+            _warmup_once()
+            r = _get_session().post(BASE_URL + path, json=payload, headers=headers, timeout=12)
         if r.status_code >= 400:
             return {"status": False, "msg": f"HTTP {r.status_code}"}
         try:
@@ -139,36 +161,64 @@ def _sync_create_mailbox(
     source_domain: str | None = None,
     clean_only: bool = False,
 ) -> dict:
-    """Create a mailbox. Tries each domain once, max 2 rounds."""
-    domains = [source_domain] if source_domain else OUTLOOK_DOMAINS[:]
-    random.shuffle(domains)
-    last_err = "unknown"
+    """Create a mailbox whose BASE address was never handed out before.
 
-    for _round in range(2):
+    22.do ignores the requested domain and returns a random mix
+    (outlook/hotmail/gmail/junk), and often the same base with a new
+    '+tag'. So we try many times, keep only in-family clean bases that are
+    not in the persistent used-set, and pick one at random.
+    """
+    import statestore
+    domains = [source_domain] if source_domain else OUTLOOK_DOMAINS[:]
+    used = {u.lower() for u in statestore.used_bases()}
+    with _issued_lock:
+        used |= _issued
+    last_err = "unknown"
+    candidates: list[tuple[str, str]] = []
+    reused: list[tuple[str, str]] = []
+
+    for attempt in range(MAX_CREATE_ATTEMPTS):
         _warmup_once()
-        for domain in domains:
-            data = _post_json(
-                "/action/mailbox/create",
-                {"type": kind, "domain": domain},
-            )
-            if not data.get("status") or not data.get("data"):
-                last_err = str(data.get("msg", data))[:120]
-                continue
-            email = data["data"].get("email")
-            if not _in_family(email or "", kind):
-                last_err = f"got out-of-family: {email}"
-                continue
-            address = base_address(email)
-            if clean_only and not _is_clean_base_address(address):
-                last_err = f"non-clean: {address}"
-                continue
-            return {"email": address, "source_domain": domain}
-        global _warmed
-        with _session_lock:
-            _warmed = False
+        domain = random.choice(domains)
+        data = _post_json("/action/mailbox/create", {"type": kind, "domain": domain})
+        if not data.get("status") or not data.get("data"):
+            last_err = str(data.get("msg", data))[:120]
+            if "403" in last_err:
+                _rotate_fingerprint()
+            continue
+        email = data["data"].get("email") or ""
+        if not _in_family(email, kind):
+            last_err = f"got out-of-family: {email}"
+            continue
+        address = base_address(email)
+        if clean_only and not _is_clean_base_address(address):
+            last_err = f"non-clean: {address}"
+            continue
+        if address.lower() in used:
+            reused.append((address, domain))
+            last_err = f"repeat: {address}"
+            continue
+        if all(a.lower() != address.lower() for a, _ in candidates):
+            candidates.append((address, domain))
+        if len(candidates) >= 3:
+            break
+
+    if candidates:
+        address, domain = random.choice(candidates)
+        with _issued_lock:
+            _issued.add(address.lower())
+        statestore.add_used_base(address.lower())
+        return {"email": address, "source_domain": domain}
 
     label = "@outlook.com / @hotmail.com" if kind == "microsoft" else "@gmail.com / @googlemail.com"
+    if reused:
+        raise RuntimeError(f"22.do sirf purane (already diye) {label} de raha hai.")
     raise RuntimeError(f"22.do abhi {label} nahi de raha ({last_err}).")
+
+
+MAX_CREATE_ATTEMPTS = 25
+_issued: set[str] = set()
+_issued_lock = threading.Lock()
 
 
 async def create_mailbox(
