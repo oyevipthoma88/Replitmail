@@ -22,6 +22,7 @@ from telegram.ext import (
 )
 import emailnator_service
 import outlook_service
+import microsoft_providers
 import mail_options
 import gmail_alias
 import outlook_alias
@@ -253,16 +254,7 @@ _BLOCKLIST_TTL = 6 * 3600
 # ── SERVICE-AGNOSTIC MESSAGE ACCESS ────────────────────────────────────────────
 async def service_get_messages(session: dict) -> list[dict]:
     if session["service"] == "outlook":
-        raw = await outlook_service.get_messages(session["email"])
-        items = [
-            {
-                "id": m.get("messageId"),
-                "subject": m.get("subject") or "(No Subject)",
-                "from": m.get("from") or "unknown",
-                "time": m.get("time") or "",
-            }
-            for m in raw
-        ]
+        items = await microsoft_providers.messages(session)
         meta = session.setdefault("meta", {})
         for it in items:
             if it["id"]:
@@ -317,7 +309,7 @@ async def service_get_message(session: dict, msg_id: str) -> dict | None:
     if session["service"] == "outlook":
         # /content/{id} is only a shell page; outlook_service.read_message
         # follows the iframe so the real mail body (and OTP) actually shows up.
-        data = await outlook_service.read_message(session["email"], msg_id)
+        data = await microsoft_providers.read(session, msg_id)
         meta = (session.get("meta") or {}).get(msg_id, {})
         body_html = data.get("html") or ""
         return {
@@ -344,7 +336,7 @@ async def service_get_message(session: dict, msg_id: str) -> dict | None:
 
 async def service_delete_message(session: dict, msg_id: str) -> bool:
     if session["service"] == "outlook":
-        return await outlook_service.delete_message(session["email"], msg_id)
+        return await microsoft_providers.delete(session, msg_id)
     return False
 
 
@@ -518,60 +510,61 @@ _LAST_NAMES = [
 ]
 
 
+def _outlook_session(result: dict, acc_password: str) -> dict:
+    return {
+        "service": "outlook",
+        "email": result["email"],
+        "acc_password": acc_password,
+        "token": None,
+        "seen_ids": set(),
+        "api_base": None,
+        "provider": result["provider"],
+        "provider_label": result["provider_label"],
+        "route_label": result["route_label"],
+        "handle": result["handle"],
+        "ignore_ids": set(result["ignore_ids"]),
+        "created_at": result["created_at"],
+    }
+
+
+_OUTLOOK_RR = {"n": 0}
+
+
 async def _create_outlook(uid: int) -> tuple[bool, str, str]:
+    start = _OUTLOOK_RR["n"]
+    _OUTLOOK_RR["n"] += 1
     try:
-        result = await _deadline(outlook_service.create_outlook(), MAILBOX_TIMEOUT, "Outlook create")
-        address = result["email"]
+        result = await _deadline(
+            microsoft_providers.create_any(start), MAILBOX_TIMEOUT * 2, "Outlook create"
+        )
     except Exception as e:
         logger.error("outlook create: %s", e)
         return False, (
-            "❌ Outlook service abhi respond nahi kar raha (22.do temporary block).\n"
+            "❌ Koi bhi Outlook service abhi respond nahi kar rahi.\n"
             "Thodi der baad try karo, ya /new (Gmail) use karo.\n"
             "Apna khud ka Outlook chahiye to /outlookmail `you@outlook.com`."
         ), ""
     acc_password = generate_strong_password()
-    SESSIONS[uid] = {
-        "service": "outlook",
-        "email": address,
-        "acc_password": acc_password,
-        "token": None,
-        "seen_ids": set(),
-        "api_base": None,
-    }
-    return True, address, acc_password
+    SESSIONS[uid] = _outlook_session(result, acc_password)
+    return True, result["email"], acc_password
 
 
 async def _create_outlook_variant(uid: int, variant: int) -> tuple[bool, str, str]:
-    """Create one clean Outlook mailbox on a dedicated source route."""
-    source_domain = outlook_service.OUTLOOK_DOMAINS[variant - 1]
+    """Each /outlookN goes to a different Microsoft mail service (round-robin)."""
+    route = microsoft_providers.route_by_index(variant)
     try:
         result = await _deadline(
-            outlook_service.create_outlook(
-                source_domain=source_domain,
-                clean_only=True,
-            ),
-            MAILBOX_TIMEOUT,
-            f"Outlook {variant} create",
+            microsoft_providers.create(route), MAILBOX_TIMEOUT * 2, f"Outlook {variant} create"
         )
-        address = result["email"]
     except Exception as e:
-        logger.error("outlook%s create: %s", variant, e)
+        logger.error("outlook%s (%s) create: %s", variant, route["label"], e)
         return False, (
-            f"❌ Outlook {variant} abhi available nahi hai. "
-            "Thodi der baad dobara try karo."
+            f"❌ Outlook {variant} ({route['label']}) abhi available nahi hai. "
+            "Dusra /outlook number try karo."
         ), ""
-
     acc_password = generate_strong_password()
-    SESSIONS[uid] = {
-        "service": "outlook",
-        "email": address,
-        "acc_password": acc_password,
-        "token": None,
-        "seen_ids": set(),
-        "api_base": None,
-        "source_domain": source_domain,
-    }
-    return True, address, acc_password
+    SESSIONS[uid] = _outlook_session(result, acc_password)
+    return True, result["email"], acc_password
 
 
 def _email_password_text(email: str, acc_password: str) -> str:
@@ -947,8 +940,8 @@ def _make_outlook_variant_cmd(variant: int):
         if ok:
             await msg.edit_text(
                 _email_password_text(email_or_err, acc_pw)
-                + f"\n\n🧭 Outlook route: `{variant}/5`"
-                + "\n✅ Address me dot (.) ya plus (+) nahi hai.",
+                + f"\n\n🧭 Service: `{SESSIONS[uid]['route_label']}`"
+                + "\n🆕 Sirf naye mail dikhenge (purane hide).",
                 parse_mode="Markdown",
                 reply_markup=email_created_kb(email_or_err, acc_pw),
             )
@@ -964,8 +957,14 @@ def _make_outlook_variant_cmd(variant: int):
 
 OUTLOOK_CMDS: dict[str, callable] = {
     f"outlook{i}": _make_outlook_variant_cmd(i)
-    for i in range(1, 6)
+    for i in range(1, max(5, len(microsoft_providers.ROUTES)) + 1)
 }
+
+
+async def cmd_services(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "📬 *Microsoft mail services*\n\n" + microsoft_providers.summary()
+    )
 
 
 async def cmd_options(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -1039,6 +1038,8 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         "• /options — Option list with details\n"
         "• /check `domain.com` — MX + provider verify\n"
         "• /gmail `you@gmail.com` — Apne asli Gmail ke multiple addresses\n"
+        "• /outlook1 … /outlook5 — Har number alag Microsoft mail service\n"
+        "• /services — Kaunsa number kis service par hai\n"
         "• /outlookmail `you@outlook.com` — Apne asli Outlook ke multiple addresses\n"
 
         "• /inbox — Check messages manually\n"
@@ -1466,6 +1467,7 @@ def main():
     app.add_handler(CommandHandler("watch", cmd_watch))
     app.add_handler(CommandHandler("stopwatch", cmd_stopwatch))
     app.add_handler(CommandHandler("help", cmd_help))
+    app.add_handler(CommandHandler("services", cmd_services))
     for _name, _handler in OUTLOOK_CMDS.items():
         # Telegram command matching is normally case-insensitive, but keeping
         # the capitalized form explicit also supports clients that preserve it.
