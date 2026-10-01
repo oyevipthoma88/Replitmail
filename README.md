@@ -70,3 +70,11 @@ Run it straight from your phone — see [TERMUX.md](TERMUX.md):
 pkg install -y git && git clone https://github.com/oyevipthoma88/Replitmail.git
 cd Replitmail && bash termux-setup.sh && bash start-termux.sh
 ```
+
+## Outlook / Hotmail — multiple services
+
+`/outlook1`, `/outlook2`, `/outlook3`… ab alag-alag Microsoft mail services par jaate hain
+(22.do, Kopeechka, HotmailBox — round-robin). Har naye mailbox ke purane (recycled) mail
+hide kar diye jaate hain, sirf naye mail dikhte hain. `/services` se dekho kaunsa number
+kis service par hai. Kopeechka/HotmailBox ke liye `.env` me `KOPEECHKA_API_KEY` /
+`HOTMAILBOX_API_KEY` daalo; key ke bina sirf 22.do routes chalte hain.
