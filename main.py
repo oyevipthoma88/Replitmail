@@ -26,6 +26,8 @@ import microsoft_providers
 import mail_options
 import gmail_alias
 import outlook_alias
+import cbstore
+import statestore
 
 load_dotenv()
 
@@ -184,7 +186,7 @@ def inbox_keyboard(messages: list[dict]) -> InlineKeyboardMarkup:
     for msg in messages[:8]:
         subject = (msg.get("subject") or "(No Subject)")[:38]
         rows.append([InlineKeyboardButton(
-            f"📧 {subject}", callback_data=f"read:{msg['id']}",
+            f"📧 {subject}", callback_data=cbstore.put("read", msg["id"]),
         )])
     rows.append([
         InlineKeyboardButton("🔄 Refresh", callback_data="inbox"),
@@ -205,7 +207,7 @@ def message_action_kb(msg_id: str, otp: str | None = None, links: list[str] | No
     if otp:
         rows.append([
             InlineKeyboardButton("🔑 Copy OTP", switch_inline_query_current_chat=otp),
-            InlineKeyboardButton("👁 Show OTP", callback_data=f"show_otp:{otp}"),
+            InlineKeyboardButton("👁 Show OTP", callback_data=cbstore.put("show_otp", otp)),
         ])
     if links:
         for i, link in enumerate(links):
@@ -216,7 +218,7 @@ def message_action_kb(msg_id: str, otp: str | None = None, links: list[str] | No
                 label = f"🔗 {label}"
             rows.append([InlineKeyboardButton(label, url=_safe_url(link))])
     rows.append([
-        InlineKeyboardButton("🗑 Delete Mail", callback_data=f"del_msg:{msg_id}"),
+        InlineKeyboardButton("🗑 Delete Mail", callback_data=cbstore.put("del_msg", msg_id)),
         InlineKeyboardButton("◀️ Back to Inbox", callback_data="inbox"),
     ])
     rows.append(_owner_row())
@@ -700,6 +702,7 @@ async def cmd_watch(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         )
         return
     _stop_watch(ctx, uid)
+    await _seed_seen(session, update.effective_chat.id)
     ctx.job_queue.run_repeating(
         _watch_job,
         interval=15,
@@ -737,6 +740,52 @@ async def cmd_stopwatch(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ No active watch running.", reply_markup=generic_kb())
 
 
+async def _safe_send(bot, chat_id: int, text: str, reply_markup=None):
+    """Send with Markdown, but never let one bad mail kill the watch job.
+
+    Telegram rejects malformed Markdown and over-long button payloads with
+    BadRequest; in that case we retry as plain text, then without buttons.
+    """
+    attempts = (
+        {"parse_mode": "Markdown", "reply_markup": reply_markup},
+        {"reply_markup": reply_markup},
+        {},
+    )
+    last = None
+    for kwargs in attempts:
+        try:
+            return await bot.send_message(chat_id=chat_id, text=text[:4000],
+                                          disable_web_page_preview=True, **kwargs)
+        except Exception as e:  # BadRequest / network
+            last = e
+            logger.warning("send_message retry (%s)", e)
+    logger.error("send_message failed permanently: %s", last)
+    return None
+
+
+async def _seed_seen(session: dict, chat_id: int) -> None:
+    """Mark everything already sitting in the mailbox as seen.
+
+    Without this, the first watch poll pushed the whole existing inbox out as
+    "New Email!" - the duplicate-mail complaint. Only mail that arrives AFTER
+    /watch is started is notified.
+    """
+    try:
+        messages = await _deadline(service_get_messages(session), INBOX_TIMEOUT, "watch seed")
+    except Exception as e:
+        logger.warning("watch seed: %s", e)
+        return
+    keys = []
+    for msg in messages:
+        mid = msg.get("id")
+        if not mid or mid == "ADSVPN":
+            continue
+        session["seen_ids"].add(mid)
+        keys.append(statestore.mail_key(mid, msg.get("from", ""), msg.get("subject", "")))
+    if keys:
+        statestore.mark_delivered(chat_id, session.get("email", ""), keys)
+
+
 async def _watch_job(ctx: ContextTypes.DEFAULT_TYPE):
     data = ctx.job.data
     uid = data["uid"]
@@ -752,12 +801,22 @@ async def _watch_job(ctx: ContextTypes.DEFAULT_TYPE):
         return
     if session["service"] == "emailnator":
         messages = [m for m in messages if m.get("id") != "ADSVPN"]
+    email = session.get("email", "")
     for msg in messages:
         mid = msg["id"]
         if mid in session["seen_ids"]:
             continue
         session["seen_ids"].add(mid)
-        full = await service_get_message(session, mid)
+        # Dedupe also across restarts (Heroku recycles the dyno constantly and
+        # the in-memory seen_ids used to reset -> every old mail re-sent).
+        id_key = statestore.mail_key(mid, msg.get("from", ""), msg.get("subject", ""))
+        if statestore.already_delivered(chat_id, email, id_key):
+            continue
+        try:
+            full = await service_get_message(session, mid)
+        except Exception as e:
+            logger.warning("watch fetch %s: %s", mid, e)
+            continue
         if not full:
             continue
         subject = full.get("subject") or "(No Subject)"
@@ -776,12 +835,14 @@ async def _watch_job(ctx: ContextTypes.DEFAULT_TYPE):
             f"*Subject:* {_md_escape(subject)}\n\n"
             f"```\n{body_short}\n```"
         )
-        await ctx.bot.send_message(
-            chat_id=chat_id,
-            text=text[:4000],
-            parse_mode="Markdown",
-            reply_markup=message_action_kb(mid, otp, links),
-        )
+        # Id-independent key: some providers hand out a new id for the same mail.
+        content_key = statestore.mail_key("", sender, subject, body)
+        if statestore.already_delivered(chat_id, email, content_key):
+            continue
+        sent = await _safe_send(ctx.bot, chat_id, text,
+                                message_action_kb(mid, otp, links))
+        if sent:
+            statestore.mark_delivered(chat_id, email, [id_key, content_key])
 
 
 async def cmd_outlook(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
@@ -1356,6 +1417,7 @@ async def on_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("❌ No active email. Use /new first.", reply_markup=generic_kb())
             return
         _stop_watch(ctx, uid)
+        await _seed_seen(session, update.effective_chat.id)
         ctx.job_queue.run_repeating(
             _watch_job,
             interval=15,
@@ -1394,7 +1456,12 @@ async def on_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         if not session:
             await query.edit_message_text("❌ No active email.", reply_markup=generic_kb())
             return
-        mid = data.split(":", 1)[1]
+        mid = cbstore.resolve(data.split(":", 1)[1])
+        if not mid:
+            await query.edit_message_text(
+                "⌛ Ye button purana ho gaya. /inbox se dobara kholo.",
+                reply_markup=generic_kb())
+            return
         full = await service_get_message(session, mid)
         if not full:
             await query.edit_message_text("❌ Could not load message.", reply_markup=generic_kb())
@@ -1420,7 +1487,7 @@ async def on_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         )
 
     elif data.startswith("show_otp:"):
-        otp = data.split(":", 1)[1]
+        otp = cbstore.resolve(data.split(":", 1)[1]) or "—"
         await query.answer(f"OTP: {otp}", show_alert=True)
         return
 
@@ -1428,7 +1495,12 @@ async def on_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         if not session:
             await query.edit_message_text("❌ No active email.", reply_markup=generic_kb())
             return
-        mid = data.split(":", 1)[1]
+        mid = cbstore.resolve(data.split(":", 1)[1])
+        if not mid:
+            await query.edit_message_text(
+                "⌛ Ye button purana ho gaya. /inbox se dobara kholo.",
+                reply_markup=generic_kb())
+            return
         deleted = await service_delete_message(session, mid)
         if deleted:
             await query.edit_message_text(
@@ -1440,6 +1512,19 @@ async def on_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             )
         else:
             await query.edit_message_text("❌ Could not delete message.", reply_markup=generic_kb())
+
+
+async def on_error(update: object, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Swallow per-update errors so a single bad mail never stops the bot."""
+    logger.error("Unhandled error: %s", ctx.error, exc_info=ctx.error)
+    try:
+        if isinstance(update, Update) and update.effective_chat:
+            await ctx.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text="⚠️ Kuch galat ho gaya. Dobara try karo ya /start dabao.",
+            )
+    except Exception:
+        pass
 
 
 # ── MAIN ───────────────────────────────────────────────────────────────────────
@@ -1473,6 +1558,7 @@ def main():
         # the capitalized form explicit also supports clients that preserve it.
         app.add_handler(CommandHandler([_name, _name.capitalize()], _handler))
     app.add_handler(CallbackQueryHandler(on_callback))
+    app.add_error_handler(on_error)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, on_text))
     # Wait for any old dyno to release the Telegram getUpdates lock.
     # Without this, the new process polls while the old one is still shutting

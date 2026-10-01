@@ -32,6 +32,7 @@ import aiohttp
 
 import emailnator_service
 import gmail_alias
+import statestore
 import outlook_service
 
 logger = logging.getLogger("TempMailBot.options")
@@ -254,7 +255,9 @@ async def target_address_ok(target: str, email: str) -> bool | None:
 
 
 # ── ADDRESS HELPERS ────────────────────────────────────────────────────────────
-_USED_BASES: set[str] = set()
+# Persisted: a dyno restart used to wipe this, so the same pool address
+# could be handed out again. Now it survives restarts.
+_USED_BASES: set[str] = statestore.used_bases()
 
 
 def gmail_base(address: str) -> str:
@@ -269,6 +272,7 @@ def mark_address_taken(address: str) -> None:
     base = gmail_base(address)
     if base:
         _USED_BASES.add(base)
+        statestore.add_used_base(base)
 
 
 def address_variants(address: str) -> list[str]:
@@ -313,28 +317,30 @@ async def build_gmail() -> dict:
     `is_disposable` checks more often than the well-known dot-alias form.
     """
     strategies = [["googleMail"], ["googleMail", "dotGmail"], ["dotGmail"]]
-    last_err = "Gmail service respond nahi kar raha"
-    for opts in strategies:
+    state = {"err": "Gmail service respond nahi kar raha"}
+
+    async def _try(opts: list[str], allow_reuse: bool) -> dict | None:
         for _ in range(3):
             try:
                 address = await emailnator_service.generate_email(opts)
             except Exception as e:
                 logger.warning("emailnator %s: %s", opts, e)
-                last_err = str(e)
+                state["err"] = str(e)
                 await asyncio.sleep(1)
                 continue
             if "+" in address:
                 continue
             if not address.lower().endswith(tuple(f"@{d}" for d in GMAIL_DOMAINS)):
                 continue
-            if gmail_base(address) in _USED_BASES:
+            if not allow_reuse and gmail_base(address) in (_USED_BASES | statestore.used_bases()):
                 continue
             try:
                 await emailnator_service.get_messages(address)
             except Exception as e:
                 logger.warning("emailnator inbox: %s", e)
-                last_err = str(e)
+                state["err"] = str(e)
                 continue
+            mark_address_taken(address)
             return {
                 "service": "emailnator",
                 "email": address,
@@ -342,7 +348,17 @@ async def build_gmail() -> dict:
                 "warn": False,
                 "shared_pool": True,
             }
-    raise RuntimeError(last_err)
+        return None
+
+    # Pass 1 refuses any pool account already handed out, so every /new gives a
+    # genuinely NEW address. Pass 2 drops that rule so a small pool can never
+    # make the command fail outright.
+    for allow_reuse in (False, True):
+        for opts in strategies:
+            got = await _try(opts, allow_reuse)
+            if got:
+                return got
+    raise RuntimeError(state["err"])
 
 
 async def build_gmail_fresh() -> dict:
