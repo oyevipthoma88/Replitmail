@@ -556,7 +556,7 @@ async def _create_outlook_variant(uid: int, variant: int) -> tuple[bool, str, st
     route = microsoft_providers.route_by_index(variant)
     try:
         result = await _deadline(
-            microsoft_providers.create(route), MAILBOX_TIMEOUT * 2, f"Outlook {variant} create"
+            microsoft_providers.create_for_variant(variant), MAILBOX_TIMEOUT * 4, f"Outlook {variant} create"
         )
     except Exception as e:
         logger.error("outlook%s (%s) create: %s", variant, route["label"], e)
