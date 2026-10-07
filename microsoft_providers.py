@@ -474,8 +474,8 @@ class EmailMux:
         return r.status_code == 200
 
 
-# HioMail / EmailMux "+" wale address dete the — hata diye.
-PROVIDERS = {p.name: p for p in (TwentyTwoDo(), TempTf(), Kopeechka(), HotmailBox())}
+# HioMail / EmailMux "+" / temp.tf "+" wale address dete the — hata diye.
+PROVIDERS = {p.name: p for p in (TwentyTwoDo(), Kopeechka(), HotmailBox())}
 
 
 def build_routes() -> list[dict]:
