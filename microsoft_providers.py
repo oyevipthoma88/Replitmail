@@ -332,7 +332,7 @@ class TempTf:
     async def create(self, arg=None) -> dict:
         async with httpx.AsyncClient(timeout=TIMEOUT, headers=self.HEADERS) as c:
             r = await c.get(f"{self.BASE}/api/account",
-                            params={"providers": arg or "outlook.com", "dot": "0", "plus": "1"})
+                            params={"providers": arg or "outlook.com", "dot": "0", "plus": "0"})
         d = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
         if not d.get("email"):
             raise RuntimeError(f"temp.tf: {d.get('error') or 'pool khali hai'}")
@@ -474,7 +474,8 @@ class EmailMux:
         return r.status_code == 200
 
 
-PROVIDERS = {p.name: p for p in (HioMail(), EmailMux(), TwentyTwoDo(), TempTf(), Kopeechka(), HotmailBox())}
+# HioMail / EmailMux "+" wale address dete the — hata diye.
+PROVIDERS = {p.name: p for p in (TwentyTwoDo(), TempTf(), Kopeechka(), HotmailBox())}
 
 
 def build_routes() -> list[dict]:
@@ -502,7 +503,6 @@ async def create_for_variant(n: int) -> dict:
     errors = []
     order = [ROUTES[(n - 1 + k) % len(ROUTES)] for k in range(len(ROUTES))]
     # Primary fail ho to sabse reliable free service (HioMail) ko turant try karo
-    order = order[:1] + sorted(order[1:], key=lambda r: {"hiomail": 0, "emailmux": 1}.get(r["provider"], 2))
     for k, route in enumerate(order):
         try:
             r = await create(route)
@@ -521,6 +521,9 @@ async def create(route: dict) -> dict:
     last = None
     for _ in range(FRESH_RETRIES):
         r = await p.create(route.get("arg"))
+        if "+" in r["email"].split("@")[0]:
+            last = None
+            continue  # "+" wala address nahi chahiye
         created = time.time()
         try:
             old = await p.messages(r["email"], r["handle"])
@@ -535,6 +538,8 @@ async def create(route: dict) -> dict:
             return last
         logger.info("%s gave recycled inbox %s (%d old mails) — retrying",
                     p.label, r["email"], len(old))
+    if not last:
+        raise RuntimeError(f"{p.label}: sirf + wale address mile")
     return last
 
 
