@@ -11,7 +11,7 @@ on genuine provider domains:
   • @gmail.com / @googlemail.com  — real Google mailbox (Emailnator pool)
   • @outlook.com / @hotmail.com   — real Microsoft mailbox
 
-Plus the user's OWN Gmail / Outlook via /gmail and /outlookmail aliases.
+Plus the user's OWN Gmail via /gmail (dot-trick aliases, never "+").
 
 Every address is still verified live before it is handed over:
   1. domain must be on the allow-list of real providers
@@ -384,7 +384,7 @@ async def build_own(base: str) -> dict:
         raise RuntimeError(
             "apna Gmail set nahi hai ya valid nahi — `/gmail you@gmail.com` chalao"
         )
-    aliases = gmail_alias.generate_aliases(base, count=25, include_plus=False)
+    aliases = gmail_alias.generate_aliases(base, count=25)
     if not aliases:
         raise RuntimeError("is Gmail ke aliases nahi ban paye")
     return {

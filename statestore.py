@@ -128,3 +128,42 @@ def add_used_base(base: str) -> None:
             for b in sorted(data, key=data.get)[:-2000]:
                 data.pop(b, None)
         _save("used_bases", data)
+
+
+# ── daily fresh-mailbox stock ────────────────────────────────────────────────
+# Background job roz naye, sabse khaali inbox wale Outlook/Hotmail mailbox yahan bharta hai,
+# taaki /outlook turant ekdam fresh address de sake.
+def _pool_clean(items: list, max_age: float) -> list:
+    now = time.time()
+    return [i for i in items if now - i.get("ts", 0) < max_age]
+
+
+def pool_push(kind: str, email: str, source: str | None = None, mails: int = 0) -> None:
+    with _lock:
+        data = _load("fresh_pool")
+        items = data.setdefault(kind, [])
+        if any(i["email"].lower() == email.lower() for i in items):
+            return
+        items.append({"email": email, "source": source, "mails": mails, "ts": time.time()})
+        data[kind] = items[-200:]
+        _save("fresh_pool", data)
+
+
+def pool_pop(kind: str, max_age: float) -> dict | None:
+    with _lock:
+        data = _load("fresh_pool")
+        items = _pool_clean(data.get(kind, []), max_age)
+        item = items.pop(0) if items else None
+        data[kind] = items
+        _save("fresh_pool", data)
+        return item
+
+
+def pool_size(kind: str, max_age: float) -> int:
+    with _lock:
+        return len(_pool_clean(_load("fresh_pool").get(kind, []), max_age))
+
+
+def pool_emails(kind: str) -> list[str]:
+    with _lock:
+        return [i["email"] for i in _load("fresh_pool").get(kind, [])]

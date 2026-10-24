@@ -3,7 +3,9 @@ import unittest
 from unittest.mock import AsyncMock, Mock, patch
 
 import emailnator_service
-import outlook_alias
+import gmail_alias
+import microsoft_providers
+import outlook_service
 
 
 class EmailnatorTests(unittest.IsolatedAsyncioTestCase):
@@ -29,15 +31,38 @@ class EmailnatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(messages), 1)
 
 
-class OutlookAliasTests(unittest.TestCase):
-    def test_generated_aliases_keep_original_mailbox(self):
-        sets = outlook_alias.generate_sets("john.doe@outlook.com", 5)
-        aliases = sets["plus"] + sets["dotplus"]
-        self.assertTrue(aliases)
-        self.assertEqual(sets["dot"], [])
-        for alias in aliases:
-            self.assertTrue(alias.startswith("john.doe+"))
-            self.assertTrue(alias.endswith("@outlook.com"))
+class NoPlusAddressTests(unittest.TestCase):
+    """'+' wale address bahut sites par fail hote hain — kahin bhi nahi milne chahiye."""
+
+    def test_gmail_aliases_never_contain_plus(self):
+        sets = gmail_alias.generate_sets("john.doe.smith@gmail.com", 30)
+        self.assertEqual(set(sets), {"dot"})
+        self.assertTrue(sets["dot"])
+        for alias in sets["dot"]:
+            self.assertNotIn("+", alias)
+
+    def test_emailnator_never_requests_plus_gmail(self):
+        self.assertNotIn("plusGmail", emailnator_service.DEFAULT_OPTIONS)
+
+    def test_22do_tag_is_stripped_to_real_base(self):
+        self.assertEqual(outlook_service.base_address("abc123+x9k@outlook.com"), "abc123@outlook.com")
+
+    def test_only_plus_free_providers_remain(self):
+        self.assertEqual(set(microsoft_providers.PROVIDERS), {"22do", "kopeechka", "hotmailbox"})
+
+
+class FreshMailboxTests(unittest.TestCase):
+    def test_picks_empty_inbox_and_never_repeats(self):
+        found = [("busy1@outlook.com", "d"), ("fresh1@hotmail.com", "d")]
+        counts = {"busy1@outlook.com": 7, "fresh1@hotmail.com": 0}
+        with patch.object(outlook_service, "_sync_pop_fresh", return_value=None), \
+             patch.object(outlook_service, "_sync_collect", return_value=(found, "", 0)), \
+             patch.object(outlook_service, "_inbox_count", side_effect=lambda a: counts[a]), \
+             patch.object(outlook_service, "_mark_issued") as mark:
+            r = outlook_service._sync_create_mailbox("microsoft")
+        self.assertEqual(r["email"], "fresh1@hotmail.com")
+        self.assertTrue(r["fresh"])
+        mark.assert_called_once_with("fresh1@hotmail.com")
 
 
 if __name__ == "__main__":

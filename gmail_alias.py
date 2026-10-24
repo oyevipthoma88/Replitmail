@@ -2,7 +2,9 @@
 
 User apna asli Gmail deta hai -> hum uske multiple working aliases banate hain.
 Har alias ka mail SEEDHA user ke asli inbox me hi aata hai (Google ka
-dot-trick + plus-tag + googlemail.com mirror domain).
+dot-trick + googlemail.com mirror domain).
+Plus (+) tags poori tarah hata diye — GitHub / Bolt / Lovable jaisi bahut sites
+unhe reject karti hain.
 """
 from __future__ import annotations
 
@@ -12,10 +14,6 @@ import re
 GMAIL_DOMAINS = ("gmail.com", "googlemail.com")
 _EMAIL_RE = re.compile(r"^[a-z0-9][a-z0-9._%+-]{4,}@([a-z0-9.-]+\.[a-z]{2,})$")
 
-# GitHub / Lovable jaise sites plus-tag reject karte hain, isliye dot-trick default.
-DEFAULT_TAGS = (
-    "gh", "dev", "app", "web", "acc", "one", "two", "pro", "x1", "np",
-)
 
 
 def normalize_gmail(raw: str) -> tuple[str, str] | None:
@@ -64,15 +62,9 @@ def dot_variants(local: str, limit: int) -> list[str]:
     return out
 
 
-def plus_variants(local: str, limit: int) -> list[str]:
-    tags = random.sample(DEFAULT_TAGS, min(limit, len(DEFAULT_TAGS)))
-    return [f"{local}+{t}" for t in tags]
-
-
 def generate_aliases(
     email: str,
     count: int = 10,
-    include_plus: bool = False,
     include_mirror: bool = True,
 ) -> list[str]:
     """Multiple aliases for one real Gmail. Sab same inbox me deliver hote hain."""
@@ -83,8 +75,6 @@ def generate_aliases(
     count = max(1, min(count, 50))
 
     locals_: list[str] = dot_variants(local, count)
-    if include_plus and len(locals_) < count:
-        locals_ += plus_variants(local, count - len(locals_))
     if not locals_:
         locals_ = [local]
 
@@ -96,20 +86,11 @@ def generate_aliases(
 
 
 def generate_sets(email: str, count: int = 10) -> dict[str, list[str]]:
-    """Do alag-alag set: dot-trick addresses aur plus-tag addresses.
-
-    Dono set same real inbox me deliver hote hain, par form alag hai —
-    signup sites ke hisaab se user choose kar sakta hai.
-    """
+    """Dot-trick addresses (sab same real inbox me). Plus (+) kabhi nahi."""
     parsed = normalize_gmail(email)
     if not parsed:
-        return {"dot": [], "plus": []}
+        return {"dot": []}
     local, _ = parsed
     count = max(1, min(count, 50))
-    dots = [f"{lp}@gmail.com" for lp in dot_variants(local, count)] or [f"{local}@gmail.com"]
-    plus = [f"{lp}@gmail.com" for lp in plus_variants(local, count)]
-    i = 1
-    while len(plus) < count:
-        plus.append(f"{local}+n{i}@gmail.com")
-        i += 1
-    return {"dot": dots[:count], "plus": plus[:count]}
+    dots = generate_aliases(email, count) or [f"{local}@gmail.com"]
+    return {"dot": dots[:count]}

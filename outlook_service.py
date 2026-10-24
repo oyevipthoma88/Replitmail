@@ -156,28 +156,48 @@ def _is_clean_base_address(email: str) -> bool:
     return bool(separator and re.fullmatch(r"[A-Za-z0-9]+", local))
 
 
-def _sync_create_mailbox(
-    kind: str = "microsoft",
-    source_domain: str | None = None,
-    clean_only: bool = False,
-) -> dict:
-    """Create a mailbox whose BASE address was never handed out before.
+MAX_CREATE_ATTEMPTS = 30
+FRESH_CANDIDATES = 4          # kitne naye bases ka inbox check karke best chunein
+POOL_TARGET = 15              # roz ke "fresh stock" me kitne mailbox ready rahein
+POOL_MAX_AGE = 12 * 3600      # stock ka mailbox 12h se purana ho to drop
+_issued: set[str] = set()
+_issued_lock = threading.Lock()
 
-    22.do ignores the requested domain and returns a random mix
-    (outlook/hotmail/gmail/junk), and often the same base with a new
-    '+tag'. So we try many times, keep only in-family clean bases that are
-    not in the persistent used-set, and pick one at random.
-    """
+
+def _inbox_count(address: str) -> int:
+    """Kitne mail pehle se pade hain (0 = ekdam fresh). Error = bahut zyada."""
+    try:
+        return len(_sync_get_messages_exact(address))
+    except Exception:
+        return 999
+
+
+def _used_now() -> set[str]:
     import statestore
-    domains = [source_domain] if source_domain else OUTLOOK_DOMAINS[:]
     used = {u.lower() for u in statestore.used_bases()}
     with _issued_lock:
         used |= _issued
-    last_err = "unknown"
-    candidates: list[tuple[str, str]] = []
-    reused: list[tuple[str, str]] = []
+    return used
 
-    for attempt in range(MAX_CREATE_ATTEMPTS):
+
+def _mark_issued(address: str) -> None:
+    import statestore
+    with _issued_lock:
+        _issued.add(address.lower())
+    statestore.add_used_base(address.lower())
+
+
+def _sync_collect(kind: str, domains: list[str], clean_only: bool, want: int,
+                  attempts: int = MAX_CREATE_ATTEMPTS) -> tuple[list[tuple[str, str]], str, int]:
+    """Collect up to `want` never-issued, plus-free base addresses from 22.do.
+
+    22.do returns `base+tag@outlook.com`. The '+tag' is thrown away — sirf
+    base address (jo asli Microsoft mailbox hai) diya jaata hai, '+' kabhi nahi.
+    """
+    used = _used_now()
+    last_err, reused = "unknown", 0
+    found: list[tuple[str, str]] = []
+    for _ in range(attempts):
         _warmup_once()
         domain = random.choice(domains)
         data = _post_json("/action/mailbox/create", {"type": kind, "domain": domain})
@@ -191,24 +211,71 @@ def _sync_create_mailbox(
             last_err = f"got out-of-family: {email}"
             continue
         address = base_address(email)
+        if "+" in address:
+            continue
         if clean_only and not _is_clean_base_address(address):
             last_err = f"non-clean: {address}"
             continue
         if address.lower() in used:
-            reused.append((address, domain))
+            reused += 1
             last_err = f"repeat: {address}"
             continue
-        if all(a.lower() != address.lower() for a, _ in candidates):
-            candidates.append((address, domain))
-        if len(candidates) >= 3:
+        if all(a.lower() != address.lower() for a, _ in found):
+            found.append((address, domain))
+        if len(found) >= want:
             break
+    return found, last_err, reused
 
-    if candidates:
-        address, domain = random.choice(candidates)
-        with _issued_lock:
-            _issued.add(address.lower())
-        statestore.add_used_base(address.lower())
-        return {"email": address, "source_domain": domain}
+
+def _sync_pop_fresh(kind: str) -> dict | None:
+    """Aaj ke fresh stock se ek mailbox — dene se pehle dobara inbox check."""
+    import statestore
+    used = _used_now()
+    while True:
+        item = statestore.pool_pop(kind, POOL_MAX_AGE)
+        if not item:
+            return None
+        addr = item["email"]
+        if addr.lower() in used or "+" in addr:
+            continue
+        n = _inbox_count(addr)
+        # Stock me aane ke baad kisi aur ne use kar liya ho to skip.
+        if n <= int(item.get("mails", 0)) + 2:
+            _mark_issued(addr)
+            return {"email": addr, "source_domain": item.get("source"), "fresh": n == 0,
+                    "old_mails": n}
+
+
+def _sync_create_mailbox(
+    kind: str = "microsoft",
+    source_domain: str | None = None,
+    clean_only: bool = False,
+) -> dict:
+    """Hamesha NAYA (kabhi pehle na diya) aur sabse FRESH mailbox do.
+
+    1. Roz ka fresh stock (background me bharta hai) — instant, 0 mail.
+    2. Warna 22.do se kai naye bases lo, har ek ka inbox check karo aur jiska
+       inbox sabse khaali ho (ideally 0 mail = ekdam fresh) wahi do.
+    """
+    # source_domain sirf 22.do ka upstream hint hai (result random hota hai), isliye
+    # stock hamesha pehle use hota hai.
+    if kind == "microsoft":
+        got = _sync_pop_fresh(kind)
+        if got:
+            return got
+    domains = [source_domain] if source_domain else OUTLOOK_DOMAINS[:]
+    found, last_err, reused = _sync_collect(kind, domains, clean_only, FRESH_CANDIDATES)
+    if found:
+        scored = []
+        for address, domain in found:
+            n = _inbox_count(address)
+            scored.append((n, address, domain))
+            if n == 0:
+                break
+        scored.sort(key=lambda t: t[0])
+        n, address, domain = scored[0]
+        _mark_issued(address)
+        return {"email": address, "source_domain": domain, "fresh": n == 0, "old_mails": n}
 
     label = "@outlook.com / @hotmail.com" if kind == "microsoft" else "@gmail.com / @googlemail.com"
     if reused:
@@ -216,9 +283,33 @@ def _sync_create_mailbox(
     raise RuntimeError(f"22.do abhi {label} nahi de raha ({last_err}).")
 
 
-MAX_CREATE_ATTEMPTS = 25
-_issued: set[str] = set()
-_issued_lock = threading.Lock()
+def _sync_refill_pool(kind: str = "microsoft", target: int = POOL_TARGET) -> int:
+    """Background job: roz naye (kabhi na diye) mailbox stock me daalo.
+
+    22.do ka pool shared hai, isliye har round double candidates lekar unme se
+    sabse KHAALI inbox wale (sabse kam mail) hi stock me rakhe jaate hain.
+    """
+    import statestore
+    have = statestore.pool_size(kind, POOL_MAX_AGE)
+    need = target - have
+    if need <= 0:
+        return have
+    pooled = {e.lower() for e in statestore.pool_emails(kind)}
+    found, _, _ = _sync_collect(kind, OUTLOOK_DOMAINS[:], True, need * 2, attempts=need * 8)
+    scored = sorted(
+        ((_inbox_count(a), a, d) for a, d in found if a.lower() not in pooled),
+        key=lambda t: t[0],
+    )
+    for n, address, domain in scored[:need]:
+        if n < 999:
+            statestore.pool_push(kind, address, domain, mails=n)
+    return statestore.pool_size(kind, POOL_MAX_AGE)
+
+
+async def refill_pool(target: int = POOL_TARGET) -> int:
+    return await asyncio.get_running_loop().run_in_executor(
+        None, lambda: _sync_refill_pool("microsoft", target)
+    )
 
 
 async def create_mailbox(

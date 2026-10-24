@@ -18,7 +18,7 @@ target-site (Lovable / GitHub / Bolt.new) acceptance.
 | Option | Kya hai |
 |---|---|
 | **Apna khud ka Gmail** | `/gmail you@gmail.com` set karo — bot uske naye dot-alias deta hai. Verification mail aapke **asli inbox** me aata hai, "already used" kabhi nahi aata. Bolt.new ke liye sabse pakka. |
-| **Real Outlook / Hotmail** | 22.do se plus-free `@outlook.com` / `@hotmail.com` mailbox (bot inbox padh sakta hai). |
+| **Real Outlook / Hotmail** | 22.do se plus-free `@outlook.com` / `@hotmail.com` mailbox. Har baar kabhi-na-diya address, aur jiska inbox khaali (0 mail) ho wahi pehle diya jaata hai. |
 | **Real Gmail (Emailnator pool)** | Shared public Gmail pool — bot inbox padh sakta hai. |
 | **Real Gmail (22.do pool)** | Doosra Gmail pool, jab pehla pool burn ho chuka ho. |
 
@@ -33,7 +33,6 @@ target-site (Lovable / GitHub / Bolt.new) acceptance.
 | Target ke liye mailbox | `/lovable`, `/github`, `/bolt` |
 | Specific option | `/bolt1`, `/bolt2`, … (`/options bolt` se list) |
 | Apne Gmail ke alias | `/gmail you@gmail.com` |
-| Apne Outlook ke alias | `/outlookmail you@outlook.com` |
 | Address check karo | `/check someone@gmail.com` |
 | Inbox | `/inbox` |
 | Auto-check | `/watch` / `/stopwatch` |
@@ -78,3 +77,21 @@ cd Replitmail && bash termux-setup.sh && bash start-termux.sh
 hide kar diye jaate hain, sirf naye mail dikhte hain. `/services` se dekho kaunsa number
 kis service par hai. Kopeechka/HotmailBox ke liye `.env` me `KOPEECHKA_API_KEY` /
 `HOTMAILBOX_API_KEY` daalo; key ke bina sirf 22.do routes chalte hain.
+
+## Plus (+) address — poori tarah band
+
+`name+tag@...` wale address GitHub / Bolt / Lovable aur bahut sites par reject hote
+the, isliye bot ab kahin bhi `+` address nahi deta:
+
+* Gmail alias (`/gmail`) — sirf dot-trick, "Plus tags" button hata diya.
+* Emailnator — `plusGmail` type band.
+* HioMail / EmailMux / temp.tf — sirf `+` address dete the, hata diye.
+* `/outlookmail` (Outlook `+` alias) hata diya — ab ye `/outlook` jaisa fresh mailbox deta hai.
+* 22.do ke `base+tag` me se tag hata ke sirf asli base mailbox diya jaata hai.
+
+## Roz fresh Outlook / Hotmail stock
+
+Har 30 min (`FRESH_POOL_INTERVAL`) bot background me 22.do se naye mailbox leta hai,
+inbox check karta hai aur sabse khaali inbox wale stock me rakhta hai
+(sabse kam mail wale, 15 tak, 12 ghante tak valid). `/outlook` pehle isi stock se deta hai — dene se pehle
+dobara check hota hai ki inbox abhi bhi khaali hai. `/services` me stock count dikhta hai.

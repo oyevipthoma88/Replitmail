@@ -13,7 +13,8 @@ USER_AGENT = (
 )
 
 EMAIL_TYPE_IDS = {"domain": 1, "plusGmail": 2, "dotGmail": 3, "googleMail": 8}
-DEFAULT_OPTIONS = ["domain", "plusGmail", "dotGmail", "googleMail"]
+# plusGmail hata diya — "+" address bahut sites par kaam nahi karte.
+DEFAULT_OPTIONS = ["dotGmail", "googleMail"]
 
 _client: httpx.AsyncClient | None = None
 

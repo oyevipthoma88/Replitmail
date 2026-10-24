@@ -25,7 +25,6 @@ import outlook_service
 import microsoft_providers
 import mail_options
 import gmail_alias
-import outlook_alias
 import cbstore
 import statestore
 
@@ -176,7 +175,6 @@ def main_menu_kb(email: str | None = None, acc_password: str | None = None) -> I
         ])
         rows.append([InlineKeyboardButton("⚡ Bolt.new options", callback_data="opts:bolt")])
         rows.append([InlineKeyboardButton("📮 Custom Gmail (multi)", callback_data="gmail_menu")])
-        rows.append([InlineKeyboardButton("📬 Custom Outlook (multi)", callback_data="outlook_menu")])
         rows.append(_owner_row())
     return InlineKeyboardMarkup(rows)
 
@@ -544,7 +542,7 @@ async def _create_outlook(uid: int) -> tuple[bool, str, str]:
         return False, (
             "❌ Koi bhi Outlook service abhi respond nahi kar rahi.\n"
             "Thodi der baad try karo, ya /new (Gmail) use karo.\n"
-            "Apna khud ka Outlook chahiye to /outlookmail `you@outlook.com`."
+            "Apna khud ka Gmail chahiye to /gmail `you@gmail.com`."
         ), ""
     acc_password = generate_strong_password()
     SESSIONS[uid] = _outlook_session(result, acc_password)
@@ -601,7 +599,7 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         f"📌 *Commands:*\n"
         f"• /new — Real Gmail / GoogleMail inbox\n"
         f"• /outlook — Real @outlook.com / @hotmail.com inbox\n"
-        f"• /Outlook1 … /Outlook5 — 5 clean Outlook routes (no dot/+)\n"
+        f"• /Outlook1 … /Outlook5 — clean Outlook routes (kabhi + nahi)\n"
         f"• /lovable — Verified email for lovable.dev\n"
         f"• /github — Verified email for github.com\n"
         f"• /bolt — Verified email for bolt.new\n"
@@ -609,7 +607,6 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         f"• /options — Options + kis ke liye best\n"
         f"• /check `domain.com` — Domain verify karo\n"
         f"• /gmail `you@gmail.com` — Apne Gmail ke multiple addresses\n"
-        f"• /outlookmail `you@outlook.com` — Apne Outlook ke multiple addresses\n"
         f"• /inbox — Check messages\n"
         f"• /watch — Auto OTP forward\n"
         f"• /delete — Delete email\n"
@@ -891,7 +888,7 @@ async def _create_for_target(uid: int, target: str, option: str | None = None) -
                     "\n\n💡 *Bolt.new har temp-mail domain block karta hai* aur shared "
                     "Gmail pool ke accounts wahan pehle se registered hain — isi liye "
                     "verification mail nahi aata tha.\n"
-                    "Sabse pakka tareeka: `/outlookmail you@outlook.com` ya "
+                    "Sabse pakka tareeka: /outlook (fresh Outlook) ya "
                     "`/gmail you@gmail.com` se apne *khud ke* account ka naya address "
                     "banao, phir usi se signup karo."
                 )
@@ -1090,7 +1087,7 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         "📌 *Commands:*\n"
         "• /new — Real Gmail / GoogleMail inbox + strong password\n"
         "• /outlook — Real @outlook.com / @hotmail.com inbox\n"
-        "• /Outlook1 … /Outlook5 — 5 clean Outlook routes (no dot/+)\n"
+        "• /Outlook1 … /Outlook5 — clean Outlook routes (kabhi + nahi)\n"
         "• /lovable — Verified email for lovable.dev\n"
         "• /github — Verified email for github.com\n"
         "• /bolt — Verified email for bolt.new\n"
@@ -1101,7 +1098,6 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         "• /gmail `you@gmail.com` — Apne asli Gmail ke multiple addresses\n"
         "• /outlook1 … /outlook5 — Har number alag Microsoft mail service\n"
         "• /services — Kaunsa number kis service par hai\n"
-        "• /outlookmail `you@outlook.com` — Apne asli Outlook ke multiple addresses\n"
 
         "• /inbox — Check messages manually\n"
         "• /watch — Auto-check every 15s + forward OTP\n"
@@ -1134,10 +1130,7 @@ GMAIL_PROMPT = (
 
 def gmail_result_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("🔄 More addresses", callback_data="gmail_more"),
-            InlineKeyboardButton("➕ Plus tags", callback_data="gmail_plus"),
-        ],
+        [InlineKeyboardButton("🔄 More addresses", callback_data="gmail_more")],
         [InlineKeyboardButton("📮 Naya Gmail", callback_data="gmail_menu")],
         [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")],
     ])
@@ -1147,19 +1140,18 @@ def _gmail_text(base: str, sets: dict) -> str:
     def block(items):
         return "```\n" + "\n".join(f"{i}. {a}" for i, a in enumerate(items, 1)) + "\n```"
 
-    dots, plus = sets.get("dot", []), sets.get("plus", [])
+    dots = sets.get("dot", [])
     return (
         f"📮 *Gmail addresses* — base `{base}`\n\n"
         f"*🔹 Dot (.) addresses — {len(dots)}*\n{block(dots)}\n"
-        f"*🔸 Plus (+) addresses — {len(plus)}*\n{block(plus)}\n"
-        "✅ Dono set ke mails aapke *isi asli Gmail inbox* me aayenge.\n"
-        "💡 Signup ke liye dot-wale best hain (plus `+` ko GitHub/Bolt reject karte hain)."
+        "✅ Sab mails aapke *isi asli Gmail inbox* me aayenge.\n"
+        "🚫 Plus (+) wale address band hain — bahut sites unhe reject karti hain."
     )
 
 
-async def _send_gmail_aliases(msg, ctx, base: str, count: int, plus: bool, edit: bool = False):
+async def _send_gmail_aliases(msg, ctx, base: str, count: int, edit: bool = False):
     sets = gmail_alias.generate_sets(base, count=count)
-    if not (sets["dot"] or sets["plus"]):
+    if not sets["dot"]:
         text = "❌ Ye valid Gmail nahi lagta. Sirf `@gmail.com` / `@googlemail.com` chalega."
         kb = generic_kb()
     else:
@@ -1168,7 +1160,6 @@ async def _send_gmail_aliases(msg, ctx, base: str, count: int, plus: bool, edit:
         if uid and gmail_alias.normalize_gmail(base):
             OWN_BASES[uid] = base
         ctx.user_data["gmail_count"] = count
-        ctx.user_data["gmail_plus"] = plus
         text = _gmail_text(base, sets)
         kb = gmail_result_kb()
     if edit:
@@ -1188,108 +1179,20 @@ async def cmd_gmail(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     if len(args) > 1 and args[1].isdigit():
         count = max(1, min(int(args[1]), 50))
     ctx.user_data.pop("awaiting_gmail", None)
-    await _send_gmail_aliases(update.message, ctx, base, count, plus=False)
-
-
-# ── CUSTOM OUTLOOK (MULTI ALIAS) ──────────────────────────────────────────────
-OUTLOOK_PROMPT = (
-    "📬 *Custom Outlook — Multi Address*\n\n"
-    "Apna asli Outlook/Hotmail bhejo, main usi ke *multiple addresses* bana dunga.\n"
-    "Har address ka mail aur OTP **isi ek inbox** me aayega (Microsoft plus-tag).\n\n"
-    "Example: `johndoe123@outlook.com`\n"
-    "Ya command: `/outlookmail johndoe123@outlook.com 15`"
-)
-
-
-def outlook_result_kb() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔄 More addresses", callback_data="outlook_more")],
-        [InlineKeyboardButton("📬 Naya Outlook", callback_data="outlook_menu")],
-        [InlineKeyboardButton("🏠 Main Menu", callback_data="main_menu")],
-    ])
-
-
-def _outlook_alias_text(base: str, sets: dict) -> str:
-    dots = sets.get("dot", [])
-
-    def block(items):
-        return "```\n" + "\n".join(f"{i}. {a}" for i, a in enumerate(items, 1)) + "\n```"
-
-    parts = [
-        f"\U0001F4EC *Outlook addresses* — base `{base}`\n",
-        "*\u2705 OTP 100% yahin aayega*\n```\n" + base + "\n```",
-    ]
-    if dots:
-        parts.append(f"*\U0001F539 Dot (.) — {len(dots)}*\n{block(dots)}")
-    parts.append(
-        "\u2139\ufe0f Plus (+) band hai. Dot (.) wale addresses unique hain, par "
-        "Microsoft dots ko ignore nahi karta \u2014 inka OTP tabhi milega jab wo "
-        "address account me alias ho. Bot dono jagah (dot + base) inbox check "
-        "karta hai, isliye OTP miss nahi hoga; kabhi na aaye to upar wala base "
-        "address use karo."
-    )
-    return "\n\n".join(parts)
-
-
-async def _send_outlook_aliases(msg, ctx, base: str, count: int, edit: bool = False):
-    sets = outlook_alias.generate_sets(base, count=count)
-    if not sets.get("dot"):
-        text = (
-            "❌ Ye valid Outlook address nahi lagta. "
-            "`@outlook.com` / `@hotmail.com` / `@live.com` / `@msn.com` chalega."
-        )
-        kb = generic_kb()
-    else:
-        ctx.user_data["outlook_base"] = base
-        ctx.user_data["outlook_count"] = count
-        text = _outlook_alias_text(base, sets)
-        kb = outlook_result_kb()
-    if edit:
-        await msg.edit_text(text, parse_mode="Markdown", reply_markup=kb)
-    else:
-        await msg.reply_text(text, parse_mode="Markdown", reply_markup=kb)
-
-
-async def cmd_outlookmail(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    args = ctx.args or []
-    if not args:
-        ctx.user_data["awaiting_outlook"] = True
-        await update.message.reply_text(
-            OUTLOOK_PROMPT, parse_mode="Markdown", reply_markup=generic_kb()
-        )
-        return
-    base = args[0]
-    count = 10
-    if len(args) > 1 and args[1].isdigit():
-        count = max(1, min(int(args[1]), 50))
-    ctx.user_data.pop("awaiting_outlook", None)
-    await _send_outlook_aliases(update.message, ctx, base, count)
+    await _send_gmail_aliases(update.message, ctx, base, count)
 
 
 # ── RELAY ALIASES (Bolt.new-safe, always unique) ──────────────────────────────
 async def on_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     text = (update.message.text or "").strip()
     waiting_gmail = ctx.user_data.pop("awaiting_gmail", False)
-    waiting_outlook = ctx.user_data.pop("awaiting_outlook", False)
 
     is_gmail = bool(gmail_alias.normalize_gmail(text))
-    is_outlook = bool(outlook_alias.normalize_outlook(text))
 
-    if is_outlook and (waiting_outlook or not waiting_gmail):
-        await _send_outlook_aliases(update.message, ctx, text, 10)
-        return
     if is_gmail:
-        await _send_gmail_aliases(update.message, ctx, text, 10, plus=False)
+        await _send_gmail_aliases(update.message, ctx, text, 10)
         return
 
-    if waiting_outlook:
-        ctx.user_data["awaiting_outlook"] = True
-        await update.message.reply_text(
-            "❌ Valid Outlook/Hotmail address bhejo, jaise `johndoe123@outlook.com`",
-            parse_mode="Markdown",
-            reply_markup=generic_kb(),
-        )
-        return
     if waiting_gmail:
         ctx.user_data["awaiting_gmail"] = True
         await update.message.reply_text(
@@ -1312,22 +1215,11 @@ async def on_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await query.answer()
 
     if data == "outlook_menu":
-        ctx.user_data["awaiting_outlook"] = True
-        ctx.user_data.pop("awaiting_gmail", None)
-        await query.edit_message_text(OUTLOOK_PROMPT, parse_mode="Markdown", reply_markup=generic_kb())
+        # Purana "Custom Outlook (+ alias)" button — ab seedha fresh Outlook.
+        data = "new_outlook"
 
-    elif data == "outlook_more":
-        base = ctx.user_data.get("outlook_base")
-        if not base:
-            ctx.user_data["awaiting_outlook"] = True
-            await query.edit_message_text(OUTLOOK_PROMPT, parse_mode="Markdown", reply_markup=generic_kb())
-        else:
-            count = min(ctx.user_data.get("outlook_count", 10) + 10, 50)
-            await _send_outlook_aliases(query.message, ctx, base, count, edit=True)
-
-    elif data == "gmail_menu":
+    if data == "gmail_menu":
         ctx.user_data["awaiting_gmail"] = True
-        ctx.user_data.pop("awaiting_outlook", None)
         await query.edit_message_text(GMAIL_PROMPT, parse_mode="Markdown", reply_markup=generic_kb())
 
     elif data in ("gmail_more", "gmail_plus"):
@@ -1336,11 +1228,10 @@ async def on_callback(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
             ctx.user_data["awaiting_gmail"] = True
             await query.edit_message_text(GMAIL_PROMPT, parse_mode="Markdown", reply_markup=generic_kb())
         else:
-            plus = data == "gmail_plus" or ctx.user_data.get("gmail_plus", False)
             count = ctx.user_data.get("gmail_count", 10)
             if data == "gmail_more":
                 count = min(count + 10, 50)
-            await _send_gmail_aliases(query.message, ctx, base, count, plus=plus, edit=True)
+            await _send_gmail_aliases(query.message, ctx, base, count, edit=True)
 
     elif data == "new_email":
         await query.edit_message_text("⏳ Creating email + generating password...")
@@ -1527,6 +1418,18 @@ async def on_error(update: object, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         pass
 
 
+# ── DAILY FRESH OUTLOOK STOCK ─────────────────────────────────────────────────
+FRESH_POOL_INTERVAL = int(os.getenv("FRESH_POOL_INTERVAL", "1800"))
+
+
+async def _refill_fresh_pool(ctx: ContextTypes.DEFAULT_TYPE):
+    try:
+        n = await asyncio.wait_for(outlook_service.refill_pool(), 240)
+        logger.info("fresh Outlook stock: %s ready", n)
+    except Exception as e:
+        logger.warning("fresh pool refill: %s", e)
+
+
 # ── MAIN ───────────────────────────────────────────────────────────────────────
 def main():
     app = (
@@ -1546,7 +1449,12 @@ def main():
     app.add_handler(CommandHandler("options", cmd_options))
     app.add_handler(CommandHandler("check", cmd_check))
     app.add_handler(CommandHandler("gmail", cmd_gmail))
-    app.add_handler(CommandHandler("outlookmail", cmd_outlookmail))
+    # /outlookmail (Outlook "+" alias) hata diya — "+" address bahut jagah fail hote the.
+    app.add_handler(CommandHandler("outlookmail", cmd_outlook))
+    # Roz naye 0-mail Outlook/Hotmail mailbox ka stock background me bharta rahe.
+    if app.job_queue:
+        app.job_queue.run_repeating(_refill_fresh_pool, interval=FRESH_POOL_INTERVAL, first=20,
+                                    name="fresh_pool")
     app.add_handler(CommandHandler("inbox", cmd_inbox))
     app.add_handler(CommandHandler("delete", cmd_delete))
     app.add_handler(CommandHandler("watch", cmd_watch))

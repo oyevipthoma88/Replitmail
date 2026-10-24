@@ -6,11 +6,10 @@ se address lete the, isliye har command same type ke purane mail dikhata tha.
 Ab har route alag service par jaata hai (round-robin) aur har naye mailbox ke
 purane (recycled) mail hide kar diye jaate hain.
 
-Providers (free wale bina key ke chalte hain):
-  0. HioMail     — free, har baar naya unique alias (100% fresh inbox)
-  0. EmailMux    — free, outlook.com / hotmail.com, naya +tag har baar
-  0. temp.tf     — free, outlook.com / hotmail.com pool
-  1. 22.do       — free, koi key nahi
+Providers (koi bhi "+" wala address nahi deta):
+  1. 22.do       — free, koi key nahi. Sirf base mailbox (plus-tag hata ke),
+                   har baar kabhi-na-diya address + sabse khaali inbox chuna
+                   jaata hai, aur roz ka fresh stock background me bharta hai.
   2. Kopeechka   — KOPEECHKA_API_KEY  (fresh real outlook/hotmail)
   3. HotmailBox  — HOTMAILBOX_API_KEY (fresh real outlook/hotmail, Graph API)
 Key na ho to provider auto-skip ho jaata hai.
@@ -67,7 +66,8 @@ class TwentyTwoDo:
 
     async def create(self, arg=None) -> dict:
         r = await outlook_service.create_outlook(source_domain=arg, clean_only=True)
-        return {"email": r["email"], "handle": {"source_domain": r.get("source_domain")}}
+        return {"email": r["email"], "handle": {"source_domain": r.get("source_domain")},
+                "fresh": r.get("fresh")}
 
     async def messages(self, email: str, handle: dict) -> list[dict]:
         raw = await outlook_service.get_messages(email)
@@ -239,242 +239,8 @@ class HotmailBox:
         return r.status_code in (200, 204)
 
 
-# ── 4. HioMail (free, public) ─────────────────────────────────────────────────
-class HioMail:
-    """hiomail.com — real @outlook/@hotmail/@live mailbox pool, har baar
-    naya unique +tag milta hai, isliye inbox hamesha 100% fresh hota hai."""
-    name = "hiomail"
-    label = "HioMail"
-    BASE = "https://hiomail.com"
-    HEADERS = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                      "(KHTML, like Gecko) Chrome/136.0 Safari/537.36",
-        "Origin": "https://hiomail.com",
-        "Referer": "https://hiomail.com/en/",
-        "Accept": "application/json",
-    }
-
-    @staticmethod
-    def configured() -> bool:
-        return os.getenv("DISABLE_HIOMAIL") != "1"
-
-    def routes(self) -> list[dict]:
-        return [{"provider": self.name, "label": "HioMail · outlook/hotmail", "arg": "outlook"}]
-
-    async def create(self, arg=None) -> dict:
-        async with httpx.AsyncClient(timeout=TIMEOUT, headers=self.HEADERS) as c:
-            r = await c.post(f"{self.BASE}/api/alias/new", params={"provider": arg or "outlook"})
-        if r.status_code != 200:
-            raise RuntimeError(f"HioMail HTTP {r.status_code}")
-        d = r.json()
-        if not d.get("alias") or not d.get("token"):
-            raise RuntimeError(f"HioMail: {d}")
-        return {"email": d["alias"], "handle": {"token": d["token"], "cache": {}}}
-
-    async def _inbox(self, email: str, handle: dict) -> list[dict]:
-        async with httpx.AsyncClient(timeout=TIMEOUT, headers=self.HEADERS) as c:
-            r = await c.post(f"{self.BASE}/api/inbox", json={"alias": email},
-                             headers={"Authorization": f"Bearer {handle['token']}"})
-        if r.status_code != 200:
-            return []
-        return r.json().get("messages") or []
-
-    async def messages(self, email: str, handle: dict) -> list[dict]:
-        out = []
-        cache = handle.setdefault("cache", {})
-        for i, m in enumerate(await self._inbox(email, handle)):
-            mid = str(m.get("id") or i)
-            cache[mid] = m
-            out.append({
-                "id": mid,
-                "subject": m.get("subject") or "(No Subject)",
-                "from": m.get("sender") or "unknown",
-                "time": m.get("time") or "",
-                "ts": _ts(m.get("timestamp")),
-            })
-        return out
-
-    async def read(self, email: str, handle: dict, msg_id: str) -> dict:
-        m = handle.get("cache", {}).get(msg_id)
-        if not m:
-            await self.messages(email, handle)
-            m = handle.get("cache", {}).get(msg_id) or {}
-        body = m.get("html") or ("<pre>" + html.escape(m.get("text") or m.get("snippet") or "") + "</pre>")
-        return {"subject": m.get("subject"), "from": m.get("sender"), "html": body}
-
-    async def delete(self, email: str, handle: dict, msg_id: str) -> bool:
-        handle.get("cache", {}).pop(msg_id, None)
-        return True
-
-
-# ── 5. temp.tf (free, public) ─────────────────────────────────────────────────
-class TempTf:
-    """temp.tf — apne outlook.com / hotmail.com accounts ka pool (+alias)."""
-    name = "temptf"
-    label = "temp.tf"
-    BASE = "https://temp.tf"
-    HEADERS = {
-        "User-Agent": HioMail.HEADERS["User-Agent"],
-        "Referer": "https://temp.tf/",
-        "Origin": "https://temp.tf",
-    }
-
-    @staticmethod
-    def configured() -> bool:
-        return os.getenv("DISABLE_TEMPTF") != "1"
-
-    def routes(self) -> list[dict]:
-        return [
-            {"provider": self.name, "label": "temp.tf · hotmail.com", "arg": "hotmail.com"},
-            {"provider": self.name, "label": "temp.tf · outlook.com", "arg": "outlook.com"},
-        ]
-
-    async def create(self, arg=None) -> dict:
-        async with httpx.AsyncClient(timeout=TIMEOUT, headers=self.HEADERS) as c:
-            r = await c.get(f"{self.BASE}/api/account",
-                            params={"providers": arg or "outlook.com", "dot": "0", "plus": "0"})
-        d = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
-        if not d.get("email"):
-            raise RuntimeError(f"temp.tf: {d.get('error') or 'pool khali hai'}")
-        return {"email": d["email"], "handle": {"cache": {}}}
-
-    async def messages(self, email: str, handle: dict) -> list[dict]:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(30.0), headers=self.HEADERS) as c:
-            r = await c.post(f"{self.BASE}/api/check", json={"email": email, "wait": False})
-        if r.status_code != 200:
-            return []
-        d = r.json()
-        items = d if isinstance(d, list) else (d.get("data") or [])
-        cache = handle.setdefault("cache", {})
-        out = []
-        for i, m in enumerate(items):
-            mid = str(m.get("id") or i)
-            cache[mid] = m
-            frm = m.get("from")
-            if isinstance(frm, dict):
-                frm = frm.get("address") or frm.get("name")
-            out.append({
-                "id": mid,
-                "subject": m.get("subject") or "(No Subject)",
-                "from": frm or "unknown",
-                "time": m.get("date") or "",
-                "ts": _ts(m.get("date")),
-            })
-        return out
-
-    async def read(self, email: str, handle: dict, msg_id: str) -> dict:
-        m = handle.get("cache", {}).get(msg_id)
-        if not m:
-            await self.messages(email, handle)
-            m = handle.get("cache", {}).get(msg_id) or {}
-        body = (m.get("html") or m.get("body") or "")
-        if not body:
-            body = "<pre>" + html.escape(m.get("text") or m.get("snippet") or "") + "</pre>"
-        frm = m.get("from")
-        if isinstance(frm, dict):
-            frm = frm.get("address") or frm.get("name")
-        return {"subject": m.get("subject"), "from": frm, "html": body}
-
-    async def delete(self, email: str, handle: dict, msg_id: str) -> bool:
-        handle.get("cache", {}).pop(msg_id, None)
-        return True
-
-
-# ── 6. EmailMux (free, public) ────────────────────────────────────────────────
-class EmailMux:
-    """emailmux.com — real @outlook.com / @hotmail.com pool, har baar naya
-    random +tag, isliye inbox fresh rehta hai. Requests MD5 se signed hote hain."""
-    name = "emailmux"
-    label = "EmailMux"
-    BASE = "https://emailmux.com"
-    SALT = "yjd683c@47"
-    HEADERS = {
-        "User-Agent": HioMail.HEADERS["User-Agent"],
-        "Origin": "https://emailmux.com",
-        "Referer": "https://emailmux.com/",
-    }
-
-    @staticmethod
-    def configured() -> bool:
-        return os.getenv("DISABLE_EMAILMUX") != "1"
-
-    def routes(self) -> list[dict]:
-        return [
-            {"provider": self.name, "label": "EmailMux · outlook.com", "arg": "outlook"},
-            {"provider": self.name, "label": "EmailMux · hotmail.com", "arg": "hotmail"},
-        ]
-
-    def _sig(self, email: str) -> dict:
-        import hashlib
-        ts = str(int(time.time() * 1000))
-        sig = hashlib.md5((self.SALT + email + ts).encode()).hexdigest()
-        return {"X-API-Timestamp": ts, "X-API-Signature": sig, "Content-Type": "application/json"}
-
-    def _client(self, handle: dict | None = None) -> httpx.AsyncClient:
-        return httpx.AsyncClient(timeout=TIMEOUT, headers=self.HEADERS,
-                                 cookies=(handle or {}).get("cookies") or None,
-                                 follow_redirects=True)
-
-    async def create(self, arg=None) -> dict:
-        async with self._client() as c:
-            await c.get(self.BASE + "/")
-            r = await c.post(self.BASE + "/generate-email", json={"domains": [arg or "outlook"]})
-            d = r.json()
-            email = d.get("email")
-            if d.get("status") != "success" or not email:
-                raise RuntimeError(f"EmailMux: {d.get('msg') or d}")
-            await c.get(self.BASE + "/use-email", params={"email": email}, headers=self._sig(email))
-            return {"email": email, "handle": {"cookies": dict(c.cookies)}}
-
-    async def messages(self, email: str, handle: dict) -> list[dict]:
-        async with self._client(handle) as c:
-            r = await c.get(self.BASE + "/emails", params={"email": email}, headers=self._sig(email))
-            if r.status_code == 401:  # session reset — dobara attach karo
-                await c.get(self.BASE + "/use-email", params={"email": email}, headers=self._sig(email))
-                r = await c.get(self.BASE + "/emails", params={"email": email}, headers=self._sig(email))
-            handle["cookies"] = dict(c.cookies)
-        if r.status_code != 200:
-            return []
-        items = r.json()
-        if not isinstance(items, list):
-            return []
-        out = []
-        for m in items:
-            uid = m.get("uuid")
-            if not uid or uid == "WelcomeToEmailMux":
-                continue
-            out.append({
-                "id": uid,
-                "subject": m.get("subject") or "(No Subject)",
-                "from": m.get("sender") or m.get("email_address") or "unknown",
-                "time": m.get("timestamp") or "",
-                "ts": _ts(m.get("timestamp")),
-            })
-        return out
-
-    async def read(self, email: str, handle: dict, msg_id: str) -> dict:
-        import json, re
-        async with self._client(handle) as c:
-            r = await c.get(f"{self.BASE}/en/email/{msg_id}")
-        body = ""
-        m = re.search(r'<script id="email-html-data" type="application/json">\s*(.*?)\s*</script>', r.text, re.S)
-        if m:
-            try:
-                body = json.loads(m.group(1))
-            except Exception:
-                body = ""
-        subj = re.search(r'<span class="text-blue-600">(.*?)</span>', r.text, re.S)
-        return {"subject": html.unescape(subj.group(1)) if subj else None,
-                "from": None, "html": body or ""}
-
-    async def delete(self, email: str, handle: dict, msg_id: str) -> bool:
-        async with self._client(handle) as c:
-            r = await c.get(self.BASE + "/del-email", params={"emailuuid": msg_id},
-                            headers=self._sig(email))
-        return r.status_code == 200
-
-
-# HioMail / EmailMux "+" / temp.tf "+" wale address dete the — hata diye.
+# HioMail / EmailMux / temp.tf sirf "+" wale address dete hain (bahut sites reject
+# karti hain) — isliye poori tarah hata diye. Koi bhi route "+" address nahi deta.
 PROVIDERS = {p.name: p for p in (TwentyTwoDo(), Kopeechka(), HotmailBox())}
 
 
@@ -502,7 +268,6 @@ async def create_for_variant(n: int) -> dict:
     """/outlookN: pehle apni service, fail ho to agli service (kabhi khali na lauto)."""
     errors = []
     order = [ROUTES[(n - 1 + k) % len(ROUTES)] for k in range(len(ROUTES))]
-    # Primary fail ho to sabse reliable free service (HioMail) ko turant try karo
     for k, route in enumerate(order):
         try:
             r = await create(route)
@@ -519,7 +284,10 @@ async def create(route: dict) -> dict:
     """Create a FRESH mailbox. Recycled inboxes are retried; leftovers are hidden."""
     p = PROVIDERS[route["provider"]]
     last = None
-    for _ in range(FRESH_RETRIES):
+    # 22.do khud hi kai bases me se sabse khaali inbox chunta hai — dobara
+    # retry karne se sirf 3x der lagti thi (40s+), isliye ek hi try.
+    tries = 1 if p.name == "22do" else FRESH_RETRIES
+    for _ in range(tries):
         r = await p.create(route.get("arg"))
         if "+" in r["email"].split("@")[0]:
             last = None
@@ -533,6 +301,7 @@ async def create(route: dict) -> dict:
             "email": r["email"], "handle": r["handle"], "provider": p.name,
             "provider_label": p.label, "route_label": route["label"],
             "created_at": created, "ignore_ids": {m["id"] for m in old},
+            "fresh": not old,
         }
         if not old:
             return last
@@ -577,6 +346,11 @@ def summary() -> str:
     lines = []
     for i, r in enumerate(ROUTES, 1):
         lines.append(f"/outlook{i} → {r['label']}")
+    try:
+        import statestore
+        lines.append(f"\n🆕 Aaj ka fresh stock: {statestore.pool_size('microsoft', outlook_service.POOL_MAX_AGE)} mailbox ready")
+    except Exception:
+        pass
     off = [p.label for p in PROVIDERS.values() if not p.configured()]
     if off:
         lines.append("\nBand (API key nahi): " + ", ".join(off))
