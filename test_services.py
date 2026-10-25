@@ -48,7 +48,7 @@ class NoPlusAddressTests(unittest.TestCase):
         self.assertEqual(outlook_service.base_address("abc123+x9k@outlook.com"), "abc123@outlook.com")
 
     def test_only_plus_free_providers_remain(self):
-        self.assertEqual(set(microsoft_providers.PROVIDERS), {"22do", "kopeechka", "hotmailbox"})
+        self.assertEqual(set(microsoft_providers.PROVIDERS), {"22do", "ownstock", "dongvanfb", "kopeechka", "hotmailbox", "anymessage"})
 
 
 class FreshMailboxTests(unittest.TestCase):
@@ -63,6 +63,23 @@ class FreshMailboxTests(unittest.TestCase):
         self.assertEqual(r["email"], "fresh1@hotmail.com")
         self.assertTrue(r["fresh"])
         mark.assert_called_once_with("fresh1@hotmail.com")
+
+
+class OwnStockTests(unittest.TestCase):
+    def test_each_account_is_given_only_once(self):
+        import os, tempfile, statestore
+        with tempfile.TemporaryDirectory() as d, \
+             patch.object(statestore, "STATE_DIR", d), \
+             patch.dict(os.environ, {"OUTLOOK_ACCOUNTS": "a1@hotmail.com|p|RT1|cid;a2@outlook.com|p|RT2|cid",
+                                     "OUTLOOK_ACCOUNTS_FILE": os.path.join(d, "none.txt")}):
+            st = microsoft_providers.OwnStock()
+            got = [asyncio.run(st.create())["email"] for _ in range(2)]
+            self.assertEqual(sorted(got), ["a1@hotmail.com", "a2@outlook.com"])
+            with self.assertRaises(RuntimeError):
+                asyncio.run(st.create())
+
+    def test_bad_lines_are_skipped(self):
+        self.assertIsNone(microsoft_providers._GraphReader.parse_line("only@hotmail.com|pass"))
 
 
 if __name__ == "__main__":

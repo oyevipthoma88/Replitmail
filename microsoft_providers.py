@@ -12,6 +12,11 @@ Providers (koi bhi "+" wala address nahi deta):
                    jaata hai, aur roz ka fresh stock background me bharta hai.
   2. Kopeechka   — KOPEECHKA_API_KEY  (fresh real outlook/hotmail)
   3. HotmailBox  — HOTMAILBOX_API_KEY (fresh real outlook/hotmail, Graph API)
+  4. DongVanFB   — DONGVANFB_API_KEY  (naye bane hotmail/outlook, sabse sasta, Graph)
+  5. AnyMessage  — ANYMESSAGE_API_KEY (outlook/hotmail activation, OTP ke liye)
+  6. Apna stock  — accounts.txt / OUTLOOK_ACCOUNTS (jugaad: kahin se bhi bulk me
+                   kharide "email|pass|refresh_token|client_id" daal do, bot ek
+                   account sirf ek baar deta hai aur Graph se inbox padhta hai)
 Key na ho to provider auto-skip ho jaata hai.
 """
 from __future__ import annotations
@@ -239,9 +244,150 @@ class HotmailBox:
         return r.status_code in (200, 204)
 
 
+# ── Shared Graph reader (refresh_token + client_id wale accounts) ─────────────
+class _GraphReader(HotmailBox):
+    @staticmethod
+    def parse_line(line: str) -> dict | None:
+        parts = [x.strip() for x in line.strip().split("|")]
+        if len(parts) < 4 or "@" not in parts[0] or not parts[2]:
+            return None
+        return {"email": parts[0], "password": parts[1],
+                "refresh_token": parts[2], "client_id": parts[3]}
+
+
+# ── 4. DongVanFB ──────────────────────────────────────────────────────────────
+class DongVanFB(_GraphReader):
+    name = "dongvanfb"
+    label = "DongVanFB"
+    API = "https://api.dongvanfb.net/user/buy"
+
+    @staticmethod
+    def configured() -> bool:
+        return bool(os.getenv("DONGVANFB_API_KEY"))
+
+    def routes(self) -> list[dict]:
+        # account_type: 1 = Hotmail New, 2 = Outlook New (dashboard me check karo)
+        return [
+            {"provider": self.name, "label": "DongVanFB · hotmail new",
+             "arg": os.getenv("DONGVANFB_HOTMAIL_TYPE", "1")},
+            {"provider": self.name, "label": "DongVanFB · outlook new",
+             "arg": os.getenv("DONGVANFB_OUTLOOK_TYPE", "2")},
+        ]
+
+    async def create(self, arg=None) -> dict:
+        async with httpx.AsyncClient(timeout=TIMEOUT) as c:
+            r = await c.get(self.API, params={
+                "apikey": os.getenv("DONGVANFB_API_KEY"), "account_type": arg or "1",
+                "quality": 1, "type": "full",
+            })
+            d = r.json()
+        rows = ((d.get("data") or {}).get("list_data")) or []
+        acc = self.parse_line(rows[0]) if rows else None
+        if not d.get("status") or not acc:
+            raise RuntimeError(f"DongVanFB: {d.get('message') or d}")
+        return {"email": acc["email"], "handle": acc}
+
+
+# ── 5. AnyMessage ─────────────────────────────────────────────────────────────
+class AnyMessage:
+    name = "anymessage"
+    label = "AnyMessage"
+    BASE = "https://api.anymessage.shop/email"
+
+    @staticmethod
+    def configured() -> bool:
+        return bool(os.getenv("ANYMESSAGE_API_KEY"))
+
+    def routes(self) -> list[dict]:
+        return [
+            {"provider": self.name, "label": "AnyMessage · outlook.com", "arg": "outlook.com"},
+            {"provider": self.name, "label": "AnyMessage · hotmail.com", "arg": "hotmail.com"},
+        ]
+
+    async def _get(self, path: str, **params) -> dict:
+        params["token"] = os.getenv("ANYMESSAGE_API_KEY")
+        async with httpx.AsyncClient(timeout=TIMEOUT) as c:
+            return (await c.get(self.BASE + path, params=params)).json()
+
+    async def create(self, arg=None) -> dict:
+        d = await self._get("/order", site=os.getenv("ANYMESSAGE_SITE", "instagram.com"),
+                            domain=arg or "outlook.com")
+        if d.get("status") != "success" or not d.get("email"):
+            raise RuntimeError(f"AnyMessage: {d.get('value') or d}")
+        return {"email": d["email"], "handle": {"order_id": str(d["id"])}}
+
+    async def messages(self, email: str, handle: dict) -> list[dict]:
+        d = await self._get("/getmessage", id=handle["order_id"])
+        body = d.get("message") or d.get("value") if d.get("status") == "success" else None
+        if not body:
+            return []  # abhi mail nahi aaya
+        handle["last_body"] = body
+        return [{"id": f"am-{handle['order_id']}", "subject": "Verification mail",
+                 "from": "anymessage", "time": "", "ts": time.time()}]
+
+    async def read(self, email: str, handle: dict, msg_id: str) -> dict:
+        if not handle.get("last_body"):
+            await self.messages(email, handle)
+        return {"subject": "Verification mail", "from": "anymessage",
+                "html": handle.get("last_body") or ""}
+
+    async def delete(self, email: str, handle: dict, msg_id: str) -> bool:
+        await self._get("/cancel", id=handle["order_id"])
+        return True
+
+
+# ── 6. Apna stock (jugaad) ────────────────────────────────────────────────────
+class OwnStock(_GraphReader):
+    """accounts.txt me har line: email|password|refresh_token|client_id.
+    Kisi bhi shop se bulk kharido (ya khud banao) — bot har account sirf ek
+    baar deta hai, phir Microsoft Graph se asli inbox padhta hai."""
+    name = "ownstock"
+    label = "Apna stock"
+
+    @staticmethod
+    def _file() -> str:
+        return os.getenv("OUTLOOK_ACCOUNTS_FILE", "accounts.txt")
+
+    def _all(self) -> list[dict]:
+        lines = (os.getenv("OUTLOOK_ACCOUNTS") or "").replace(";", "\n").splitlines()
+        try:
+            with open(self._file(), encoding="utf-8") as f:
+                lines += f.read().splitlines()
+        except OSError:
+            pass
+        out, seen = [], set()
+        for ln in lines:
+            a = self.parse_line(ln)
+            if a and a["email"].lower() not in seen:
+                seen.add(a["email"].lower())
+                out.append(a)
+        return out
+
+    def configured(self) -> bool:
+        return bool(self._all())
+
+    def remaining(self) -> int:
+        import statestore
+        used = statestore.used_bases()
+        return sum(1 for a in self._all() if a["email"].lower() not in used)
+
+    def routes(self) -> list[dict]:
+        return [{"provider": self.name, "label": "Apna stock · outlook/hotmail", "arg": None}]
+
+    async def create(self, arg=None) -> dict:
+        import statestore
+        used = statestore.used_bases()
+        for a in self._all():
+            if a["email"].lower() not in used:
+                statestore.add_used_base(a["email"].lower())
+                return {"email": a["email"], "handle": dict(a)}
+        raise RuntimeError("Apna stock khatam — accounts.txt me naye account daalo")
+
+
 # HioMail / EmailMux / temp.tf sirf "+" wale address dete hain (bahut sites reject
 # karti hain) — isliye poori tarah hata diye. Koi bhi route "+" address nahi deta.
-PROVIDERS = {p.name: p for p in (TwentyTwoDo(), Kopeechka(), HotmailBox())}
+PROVIDERS = {p.name: p for p in (
+    TwentyTwoDo(), OwnStock(), DongVanFB(), Kopeechka(), HotmailBox(), AnyMessage())}
 
 
 def build_routes() -> list[dict]:
@@ -349,6 +495,12 @@ def summary() -> str:
     try:
         import statestore
         lines.append(f"\n🆕 Aaj ka fresh stock: {statestore.pool_size('microsoft', outlook_service.POOL_MAX_AGE)} mailbox ready")
+    except Exception:
+        pass
+    try:
+        st = PROVIDERS["ownstock"]
+        if st.configured():
+            lines.append(f"📦 Apna stock: {st.remaining()} account baaki")
     except Exception:
         pass
     off = [p.label for p in PROVIDERS.values() if not p.configured()]
